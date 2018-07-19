@@ -1,0 +1,16 @@
+<launch>
+	<group ns="quad1">
+		<node name="vicon_node" pkg="drone_pose" type="vicon_node" output="screen">
+			<param name="vicon_topic" value="/vicon/quad1/quad1"/>
+			<param name="remapped_topic" value="mavros/mocap/pose"/>
+		</node>
+		<node name="drone_pose_node" pkg="drone_pose" type="drone_pose_node" output="screen">
+			<rosparam param="x_bounds"> [-5, 5] </rosparam>
+			<rosparam param="y_bounds"> [-5, 5] </rosparam>
+			<rosparam param="z_bounds"> [-1, 2] </rosparam>
+			
+			<rosparam param="takeoff_position"> [0, 0, 1] </rosparam>
+		</node>
+		<!-- <include file="$(find mavros)/launch/px4.launch" /> -->
+	</group>
+</launch>

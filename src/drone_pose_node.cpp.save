@@ -1,0 +1,205 @@
+#include <ros/ros.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/Quaternion.h>
+#include <mavros_msgs/CommandBool.h>
+#include <mavros_msgs/SetMode.h>
+#include <mavros_msgs/State.h>
+#include <mavros_msgs/AttitudeTarget.h>
+#include <sensor_msgs/Joy.h>
+#include <std_msgs/Float64MultiArray.h>
+#include <math.h>
+#include <time.h>
+#include <tf/transform_datatypes.h>
+
+using namespace std;
+
+// Globals
+mavros_msgs::State current_state;
+geometry_msgs::PoseStamped setpoint;
+geometry_msgs::PoseStamped pose;
+
+//setup arming code bool
+mavros_msgs::CommandBool arm_status;
+mavros_msgs::SetMode offb_set_mode;
+ros::ServiceClient arming_client;
+ros::ServiceClient set_mode_client;
+
+//xbox joystick control
+float xbox_pose[6] = {0,0,0,0,0,0};
+//Flight mode switch
+int FlightMode = 1;
+
+float x_bound[2] = {-0.6,1.3};
+float y_bound[2] = {-1.6,1.6};
+float z_bound[2] = {0,1.7};
+
+bool isBounded();
+void init();
+void state_cb(const mavros_msgs::State::ConstPtr&);
+void xbox_cb(const sensor_msgs::Joy&);
+void odom_cb(const geometry_msgs::PoseStamped&);
+
+// Main
+int main(int argc, char **argv)
+	{
+	ros::init(argc, argv, "drone_pose");
+	ros::NodeHandle nh;
+
+	// Subscribers
+	ros::Subscriber state_subscriber = nh.subscribe("mavros/state", 10, state_cb);
+	ros::Subscriber joystick = nh.subscribe("/joy", 1000, xbox_cb);
+	ros::Subscriber odom_sub = nh.subscribe("mavros/local_position/pose", 1000, odom_cb);
+	
+	// Publishers
+	ros::Publisher setpoint_publisher = nh.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_position/local", 10);
+	
+	//Service Client
+	arming_client = nh.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
+	set_mode_client = nh.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
+
+	// Publish Rate
+	ros::Rate rate(250.0);
+
+	// wait for PixRacer
+	while(ros::ok() && current_state.connected)
+	{
+		ros::spinOnce();
+		rate.sleep();
+	}
+	
+	init();
+	
+	while(ros::ok())
+	{
+
+		if(FlightMode == 1) // Joystick Mode
+		{		
+		// Create and set target position
+		setpoint.header.stamp = ros::Time::now();
+		setpoint.pose.position.x = 0;//+= 0.006*(-1*xbox_pose[0]);
+		setpoint.pose.position.y = 0;//+= 0.006*xbox_pose[1];
+		setpoint.pose.position.z = 0.7; //+= 0.006*xbox_pose[2];
+		
+		setpoint_publisher.publish(setpoint);
+		}
+		
+		if(FlightMode == 2) // Autonomous Mode
+		{
+		setpoint.header.stamp = ros::Time::now();
+		setpoint.pose.position.x += 0.006*(-1*xbox_pose[0]);//x_path[current];
+		setpoint.pose.position.y += 0.006*xbox_pose[1];// y_path[current];
+		setpoint.pose.position.z += 0.006*xbox_pose[2]; //0.7;// z_path[current];
+
+		if(isBounded())
+		setpoint_publisher.publish(setpoint);	
+		}
+		
+		ros::spinOnce();
+		rate.sleep();
+	}
+
+	return 0;
+}
+
+bool isBounded()
+{
+if(setpoint.pose.position.x > x_bound[0] && setpoint.pose.position.x < x_bound[1] && setpoint.pose.position.y > y_bound[0] && setpoint.pose.position.y < y_bound[1] && setpoint.pose.position.z > z_bound[0] && setpoint.pose.position.z < z_bound[1])
+return 1;
+else
+return 0;
+}
+
+void init()
+{
+	// Create and set target position
+	tf::Quaternion quad_orientation;
+	quad_orientation.setRPY(0,0,0);	
+
+	setpoint.header.stamp = ros::Time::now();
+	
+	setpoint.pose.position.x = 0;
+	setpoint.pose.position.y = 0;
+	setpoint.pose.position.z = 0.7;
+
+	setpoint.pose.orientation.x = quad_orientation.x();
+	setpoint.pose.orientation.y = quad_orientation.y();
+	setpoint.pose.orientation.z = quad_orientation.z();
+	setpoint.pose.orientation.w = quad_orientation.w();
+
+	setpoint_publisher.publish(setpoint);
+	ROS_INFO("Sleepingros::Duration(0.5).sleep();");
+	ros::Duration(30).sleep();
+}
+
+// State callback
+void state_cb(const mavros_msgs::State::ConstPtr& msg)
+{
+	current_state = *msg;
+}
+
+//xbox callback
+void xbox_cb(const sensor_msgs::Joy& msg)
+{	
+	if(msg.buttons[2] == 1)
+	{
+	//ARM = X
+	offb_set_mode.request.custom_mode = "OFFBOARD";
+	arm_status.request.value = true;
+	
+	set_mode_client.call(offb_set_mode);
+	arming_client.call(arm_status);
+			
+	ROS_INFO ("Armed");
+	}
+	
+	if(msg.buttons[3] == 1)
+	{
+	//DISARM = B
+	offb_set_mode.request.custom_mode = "STABILIZED";
+	arm_status.request.value = false;
+	
+	set_mode_client.call(offb_set_mode);
+	arming_client.call(arm_status);
+	
+	ROS_INFO ("DisArmed");
+	}
+	
+	if(msg.buttons[0] == 1)
+	{
+	FlightMode = 1;
+	ROS_INFO("Joystick Control");
+	}
+	
+	if(msg.buttons[1] == 1)
+	{
+	FlightMode = 2;
+	ROS_INFO("Autonomous Mode");
+  	}
+
+	if(abs(msg.axes[3])>0.1) //X
+		xbox_pose[0] = msg.axes[3];
+	else
+		xbox_pose[0] = 0;
+		
+	if(abs(msg.axes[4])>0.1) //Y
+		xbox_pose[1] = msg.axes[4];
+	else
+		xbox_pose[1] = 0;
+		
+	if(abs(msg.axes[1])>0.1)  //Z
+		xbox_pose[2] = msg.axes[1];
+	else
+		xbox_pose[2] = 0;
+		
+	if(abs(msg.axes[1])>0.1)  //YAW
+		xbox_pose[3] = msg.axes[1];
+	else
+		xbox_pose[3] = 0;
+}
+
+void odom_cb(const geometry_msgs::PoseStamped& msg)
+{
+	pose = msg;
+}
+
+
