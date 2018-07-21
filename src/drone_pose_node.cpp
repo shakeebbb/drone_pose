@@ -27,6 +27,7 @@ ros::ServiceClient set_mode_client;
 
 //xbox joystick control
 float xbox_pose[6] = {0,0,0,0,0,0};
+int arm_button, disarm_button, flightMode1_button, flightMode2_button, x_axis, y_axis, z_axis, yaw_axis;
 
 //Flight mode switch
 std_msgs::Int32 flightMode;
@@ -55,6 +56,17 @@ int main(int argc, char **argv)
 	ros::param::get("drone_pose_node/z_bounds", z_bounds);
 	
 	ros::param::get("drone_pose_node/takeoff_position", takeoff_position);
+
+	ros::param::get("drone_pose_node/arm_button", arm_button);
+	ros::param::get("drone_pose_node/disarm_button", disarm_button);
+
+	ros::param::get("drone_pose_node/flightMode1_button", flightMode1_button);
+	ros::param::get("drone_pose_node/flightMode2_button", flightMode2_button);
+
+	ros::param::get("drone_pose_node/x_axis", x_axis);
+	ros::param::get("drone_pose_node/y_axis", y_axis);
+	ros::param::get("drone_pose_node/z_axis", z_axis);
+	ros::param::get("drone_pose_node/yaw_axis", yaw_axis);
 
 	// Subscribers
 	ros::Subscriber state_subscriber = nh.subscribe("mavros/state", 10, state_cb);
@@ -159,7 +171,7 @@ void state_cb(const mavros_msgs::State::ConstPtr& msg)
 //xbox callback
 void xbox_cb(const sensor_msgs::Joy& msg)
 {
-	if(msg.buttons[2] == 1)
+	if(msg.buttons[arm_button] == 1)
 	{
 	//ARM = X
 	offb_set_mode.request.custom_mode = "OFFBOARD";
@@ -171,7 +183,7 @@ void xbox_cb(const sensor_msgs::Joy& msg)
 	ROS_INFO ("Armed");
 	}
 
-	if(msg.buttons[3] == 1)
+	if(msg.buttons[disarm_button] == 1)
 	{
 	//DISARM = B
 	offb_set_mode.request.custom_mode = "STABILIZED";
@@ -183,7 +195,7 @@ void xbox_cb(const sensor_msgs::Joy& msg)
 	ROS_INFO ("DisArmed");
 	}
 
-	if(msg.buttons[0] == 1)
+	if(msg.buttons[flightMode1_button] == 1)
 	{
 	flightMode.data = 1;
 
@@ -193,29 +205,29 @@ void xbox_cb(const sensor_msgs::Joy& msg)
 	ROS_INFO("Joystick Control");
 	}
 
-	if(msg.buttons[1] == 1)
+	if(msg.buttons[flightMode2_button] == 1)
 	{
 	flightMode.data = 2;
 	ROS_INFO("Autonomous Control");
   	}
 
-	if(abs(msg.axes[4])>0.2) //X
-		xbox_pose[0] = msg.axes[4];
+	if(abs(msg.axes[x_axis])>0.2) //X
+		xbox_pose[0] = msg.axes[x_axis];
 	else
 		xbox_pose[0] = 0;
 
-	if(abs(msg.axes[3])>0.2) //Y
-		xbox_pose[1] = msg.axes[3];
+	if(abs(msg.axes[y_axis])>0.2) //Y
+		xbox_pose[1] = msg.axes[y_axis];
 	else
 		xbox_pose[1] = 0;
 
-	if(abs(msg.axes[1])>0.2)  //Z
-		xbox_pose[2] = msg.axes[1];
+	if(abs(msg.axes[z_axis])>0.2)  //Z
+		xbox_pose[2] = msg.axes[z_axis];
 	else
 		xbox_pose[2] = 0;
 
-	if(abs(msg.axes[1])>0.2)  //YAW
-		xbox_pose[3] = msg.axes[1];
+	if(abs(msg.axes[yaw_axis])>0.2)  //YAW
+		xbox_pose[3] = msg.axes[yaw_axis];
 	else
 		xbox_pose[3] = 0;
 }

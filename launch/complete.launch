@@ -10,7 +10,23 @@
 			<rosparam param="z_bounds"> [-1, 2] </rosparam>
 			
 			<rosparam param="takeoff_position"> [0, 0, 1] </rosparam>
+
+			<param name="arm_button" type="int" value="2"/>
+			<param name="disarm_button" type="int" value="3"/>
+
+			<param name="flightMode1_button" type="int" value="0"/>
+			<param name="flightMode2_button" type="int" value="1"/>
+
+			<param name="x_axis" type="int" value="4"/>
+                        <param name="y_axis" type="int" value="3"/>
+			<param name="z_axis" type="int" value="1"/>
+			<param name="yaw_axis" type="int" value="0"/>
 		</node>
-		<!-- <include file="$(find mavros)/launch/px4.launch" /> -->
+		<include file="$(find mavros)/launch/px4.launch" />
 	</group>
 </launch>
+
+
+<!-- Microsoft Xbox 360 Wired Controller for Linux -->
+<!-- Buttons => 0:A, 1:B, 2:X, 3:Y, 4:LB, 5:RB, 6:back, 7:start, 8:power -->
+<!-- Axes => 0:L/R Left stick, 1:U/D Left stick, 2:LT, 3:L/R Right stick, 4:U/D Right stick, 5:RT -->  
