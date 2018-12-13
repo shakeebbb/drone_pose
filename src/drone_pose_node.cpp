@@ -7,6 +7,7 @@
 #include <mavros_msgs/State.h>
 #include <sensor_msgs/Joy.h>
 #include <std_msgs/Int32.h>
+#include <std_msgs/Bool.h>
 #include <math.h>
 #include <time.h>
 #include <tf/transform_datatypes.h>
@@ -31,6 +32,7 @@ int arm_button, disarm_button, flightMode1_button, flightMode2_button, x_axis, y
 
 //Flight mode switch
 std_msgs::Int32 flightMode;
+std_msgs::Bool positionHold;
 
 vector<float> x_bounds;
 vector<float> y_bounds;
@@ -44,6 +46,7 @@ void state_cb(const mavros_msgs::State::ConstPtr&);
 void xbox_cb(const sensor_msgs::Joy&);
 void odom_cb(const nav_msgs::Odometry&);
 void setpoint_cb(const geometry_msgs::PoseStamped&);
+void positionHold_cb(const std_msgs::Bool&);
 
 // Main
 int main(int argc, char **argv)
@@ -73,7 +76,7 @@ int main(int argc, char **argv)
 	ros::Subscriber joystick = nh.subscribe("/joy", 1000, xbox_cb);
 	ros::Subscriber odom_sub = nh.subscribe("mavros/local_position/odom", 1000, odom_cb);
 	ros::Subscriber setpoint_sub = nh.subscribe("mavros/setpoint_position/local", 10, setpoint_cb);
-	
+	ros::Subscriber positionHold_sub = nh.subscribe("position_hold", 10, positionHold_cb);	
 	// Publishers
 	ros::Publisher setpoint_publisher = nh.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_position/local", 10);
 	ros::Publisher flightMode_publisher = nh.advertise<std_msgs::Int32>("flight_mode", 10);
@@ -109,7 +112,14 @@ int main(int argc, char **argv)
 		}
 		if(flightMode.data == 2) // Autonomous Mode
 		{
+			if(positionHold.data)
+			{
+			setpoint = setpointRead;
+			setpoint.header.stamp = ros::Time::now();
 
+			isBounded(setpoint);	
+			setpoint_publisher.publish(setpoint);
+			}
 		}
 
 		ros::spinOnce();
@@ -160,6 +170,7 @@ void init() // Take-off Parameters
 	setpoint.pose.orientation.w = quad_orientation.w();
 
 	flightMode.data = 1;
+	positionHold.data = 0;
 }
 
 // State callback
@@ -240,5 +251,8 @@ void setpoint_cb(const geometry_msgs::PoseStamped& msg)
 {
 	setpointRead = msg;	
 }
-
+void positionHold_cb(const std_msgs::Bool& msg)
+{
+positionHold = msg;
+}
 

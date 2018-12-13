@@ -9,7 +9,7 @@
 			<rosparam param="y_bounds"> [-5, 5] </rosparam>
 			<rosparam param="z_bounds"> [-1, 2] </rosparam>
 			
-			<rosparam param="takeoff_position"> [0, 0, 1] </rosparam>
+			<rosparam param="takeoff_position"> [-0.6, 0.48, 0.5] </rosparam>
 
 			<param name="arm_button" type="int" value="2"/>
 			<param name="disarm_button" type="int" value="3"/>
