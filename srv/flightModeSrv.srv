@@ -1,0 +1,6 @@
+bool setGet
+uint8 flightMode
+
+---
+
+uint8 flightMode

@@ -2,7 +2,7 @@
 <package format="2">
   <name>drone_pose</name>
   <version>0.0.0</version>
-  <description>The drone_pose package</description>
+  <description>The asap package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
@@ -19,7 +19,7 @@
   <!-- Url tags are optional, but multiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
-  <!-- <url type="website">http://wiki.ros.org/drone_pose</url> -->
+  <!-- <url type="website">http://wiki.ros.org/asap_pkg/url> -->
 
 
   <!-- Author tags are optional, multiple are allowed, one per tag -->
@@ -67,6 +67,8 @@
   <exec_depend>roscpp</exec_depend>
   <exec_depend>rospy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
+  <build_depend>message_generation</build_depend>
+	<exec_depend>message_runtime</exec_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->
