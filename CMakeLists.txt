@@ -139,7 +139,6 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
  add_executable(drone_pose_node src/drone_pose_node.cpp)
- add_executable(quad1_node src/quad1_node.cpp)
  add_executable(vicon_node src/vicon_node.cpp)
  add_executable(vision_node src/vision_node.cpp)
 
@@ -155,7 +154,6 @@ include_directories(
 
 ## Specify libraries to link a library or executable target against
  target_link_libraries(drone_pose_node ${catkin_LIBRARIES} )
- target_link_libraries(quad1_node ${catkin_LIBRARIES} )
  target_link_libraries(vicon_node ${catkin_LIBRARIES} )
  target_link_libraries(vision_node ${catkin_LIBRARIES} )
 

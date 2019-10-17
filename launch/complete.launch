@@ -1,23 +1,23 @@
 <launch>
-	<group ns="quad1">
-	
-		<node name="vicon_node" pkg="drone_pose" type="vicon_node">
-			<param name="vicon_topic" value="/vicon/quad1/quad1"/>
-			<param name="remapped_topic" value="mavros/mocap/pose"/>
-		</node>
-		
+	<node name="joy_node" pkg="joy" type="joy_node" output="screen"/>
+
+	<remap to="A01/mavros/vision_pose/pose" from="vrpn_client_node/A01002/pose"/> 
+	<include file="$(find vrpn_client_ros)/launch/sample.launch" />
+
+	<group ns="A01">
+
 		<node name="drone_pose_node" pkg="drone_pose" type="drone_pose_node" output="screen">
 		
-			<rosparam param="x_bounds"> [-5, 5] </rosparam>
+                        <rosparam param="x_bounds"> [-5, 5] </rosparam>
 			<rosparam param="y_bounds"> [-5, 5] </rosparam>
 			<rosparam param="z_bounds"> [-1, 2] </rosparam>
 			
-			<rosparam param="takeoff_position"> [0, -0.5, 1] </rosparam>
+			<rosparam param="takeoff_position"> [0, 0, 0.8] </rosparam>
 			
 			<param name="mavros_state_topic" value="mavros/state"/>
 			<param name="joy_topic" value="/joy"/>
 			<param name="odometry_topic" value="odometry_sensor1/odometry"/>
-			<param name="setpoints_topic" value="command/pose"/>
+			<param name="setpoints_topic" value="mavros/setpoint_position/local"/>
 			<param name="flight_mode_service" value="flight_mode"/>
 			<param name="trajectory_topic" value="trajectory"/>
 
@@ -28,53 +28,13 @@
 			<param name="flightMode2_button" type="int" value="1"/>
 
 			<param name="x_axis" type="int" value="4"/>
-      <param name="y_axis" type="int" value="3"/>
+                        <param name="y_axis" type="int" value="3"/>
 			<param name="z_axis" type="int" value="1"/>
 			<param name="yaw_axis" type="int" value="0"/>
 			
 		</node>
 	
-		<!-- <include file="$(find mavros)/launch/px4.launch" /> -->
-	</group>
-	
-	
-	
-	<group ns="quad2">
-	
-		<node name="vicon_node" pkg="drone_pose" type="vicon_node" output="screen">
-			<param name="vicon_topic" value="/vicon/quad2/quad2"/>
-			<param name="remapped_topic" value="mavros/mocap/pose"/>
-		</node>
-		
-		<node name="drone_pose_node" pkg="drone_pose" type="drone_pose_node">
-		
-			<rosparam param="x_bounds"> [-5, 5] </rosparam>
-			<rosparam param="y_bounds"> [-5, 5] </rosparam>
-			<rosparam param="z_bounds"> [-1, 2] </rosparam>
-			
-			<rosparam param="takeoff_position"> [1, 0, 1.5] </rosparam>
-			
-			<param name="mavros_state_topic" value="mavros/state"/>
-			<param name="joy_topic" value="/joy"/>
-			<param name="odometry_topic" value="odometry_sensor2/odometry"/>
-			<param name="setpoints_topic" value="command/pose"/>
-			<param name="flight_mode_service" value="flight_mode"/>
-			<param name="trajectory_topic" value="trajectory"/>
-
-			<param name="arm_button" type="int" value="2"/>
-			<param name="disarm_button" type="int" value="3"/>
-
-			<param name="flightMode1_button" type="int" value="0"/>
-			<param name="flightMode2_button" type="int" value="6"/>
-
-			<param name="x_axis" type="int" value="4"/>
-      <param name="y_axis" type="int" value="3"/>
-			<param name="z_axis" type="int" value="1"/>
-			<param name="yaw_axis" type="int" value="0"/>
-			
-		</node>
-	
-		<!-- <include file="$(find mavros)/launch/px4.launch" /> -->
+		<include file="$(find mavros)/launch/px4.launch" />
 	</group>
 	
 	
@@ -84,3 +44,6 @@
 <!-- Microsoft Xbox 360 Wired Controller for Linux -->
 <!-- Buttons => 0:A, 1:B, 2:X, 3:Y, 4:LB, 5:RB, 6:back, 7:start, 8:power -->
 <!-- Axes => 0:L/R Left stick, 1:U/D Left stick, 2:LT, 3:L/R Right stick, 4:U/D Right stick, 5:RT -->  
+
+<!-- F170 Logitech for Linux -->
+<!-- Buttons => -->
