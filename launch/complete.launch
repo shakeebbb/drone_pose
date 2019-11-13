@@ -1,10 +1,17 @@
 <launch>
 	<node name="joy_node" pkg="joy" type="joy_node" output="screen"/>
 
-	<remap to="A01/mavros/vision_pose/pose" from="vrpn_client_node/A01002/pose"/> 
+	<!--remap to="A01/mavros/vision_pose/pose" from="vrpn_client_node/A01002/pose"/--> 
 	<include file="$(find vrpn_client_ros)/launch/sample.launch" />
 
 	<group ns="A01">
+
+		<node name="tf2pose" pkg="drone_pose" type="tf2pose" output="screen">
+			<param name="tf_target_frame" value="odom"/>
+			<param name="tf_source_frame" value="base_link"/>
+			<param name="pose_frame_id" value="world"/>
+			<remap from="pose_topic" to="mavros/vision_pose/pose"/>
+		</node>
 
 		<node name="drone_pose_node" pkg="drone_pose" type="drone_pose_node" output="screen">
 		

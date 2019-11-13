@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   message_generation
+  tf2_ros
 )
 
 ## System dependencies are found with CMake's conventions
@@ -141,7 +142,7 @@ include_directories(
  add_executable(drone_pose_node src/drone_pose_node.cpp)
  add_executable(vicon_node src/vicon_node.cpp)
  add_executable(vision_node src/vision_node.cpp)
-
+ add_executable(tf2pose src/tf2pose.cpp)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -156,7 +157,7 @@ include_directories(
  target_link_libraries(drone_pose_node ${catkin_LIBRARIES} )
  target_link_libraries(vicon_node ${catkin_LIBRARIES} )
  target_link_libraries(vision_node ${catkin_LIBRARIES} )
-
+ target_link_libraries(tf2pose ${catkin_LIBRARIES} )
 #############
 ## Install ##
 #############
