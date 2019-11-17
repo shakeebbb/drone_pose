@@ -14,8 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+	tf2_ros
   message_generation
-  tf2_ros
 )
 
 ## System dependencies are found with CMake's conventions
@@ -152,6 +152,7 @@ include_directories(
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(drone_pose_node drone_pose_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
  target_link_libraries(drone_pose_node ${catkin_LIBRARIES} )
