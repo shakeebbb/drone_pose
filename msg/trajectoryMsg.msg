@@ -1,7 +1,4 @@
 Header header
-float32[] X
-float32[] Y
-float32[] Z
+geometry_msgs/Pose[] poses
 bool appendRefresh
-int32 nPoints
 float32 samplingTime

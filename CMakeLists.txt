@@ -76,7 +76,7 @@ find_package(catkin REQUIRED COMPONENTS
  generate_messages(
    DEPENDENCIES
    std_msgs
-   #geometry_msgs#   mavros_msgs#   nav_msgs#   std_msgs
+   geometry_msgs#   mavros_msgs#   nav_msgs#   std_msgs
  )
 
 ################################################
@@ -143,6 +143,7 @@ include_directories(
  add_executable(vicon_node src/vicon_node.cpp)
  add_executable(vision_node src/vision_node.cpp)
  add_executable(tf2pose src/tf2pose.cpp)
+ add_executable(sample_traj_node src/sample_traj_node.cpp)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -159,6 +160,7 @@ add_dependencies(drone_pose_node drone_pose_generate_messages_cpp)
  target_link_libraries(vicon_node ${catkin_LIBRARIES} )
  target_link_libraries(vision_node ${catkin_LIBRARIES} )
  target_link_libraries(tf2pose ${catkin_LIBRARIES} )
+ target_link_libraries(sample_traj_node ${catkin_LIBRARIES} )
 #############
 ## Install ##
 #############

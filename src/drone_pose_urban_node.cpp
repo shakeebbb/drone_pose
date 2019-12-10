@@ -1,7 +1,6 @@
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Quaternion.h>
-#include <geometry_msgs/PoseArray.h>
 #include <nav_msgs/Odometry.h>
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/SetMode.h>
@@ -18,14 +17,14 @@
 
 using namespace std;
 
-class drone_pose_class
+class drone_pose
 {
 
 private:
 	// Subscribers
-	ros::Subscriber stateMavrosSub;
-	ros::Subscriber joySub;
-	ros::Subscriber poseSub;
+	ros::Subscriber stateSub;
+	ros::Subscriber joystick;
+	ros::Subscriber odomSub;
 	ros::Subscriber setpointSub;
 	ros::Subscriber trajectorySub;
 	
@@ -33,7 +32,7 @@ private:
 	ros::Publisher setpointPub;
 	
 	// Servers
-	ros::ServiceServer flightModeServer;
+	ros::ServiceClient flightModeServer;
 	
 	// Clients
 	ros::ServiceClient armingClient;
@@ -43,8 +42,8 @@ private:
 	ros::Timer trajTimer;
 	
 	// Mission variables
-	geometry_msgs::PoseStamped currentPose;
-	geometry_msgs::PoseStamped currentSetpoint;
+	nav_msgs::Odometry currentOdom;
+	geometry_msgs::Pose currentSetpoint;
 	int currentWaypointId;
 	geometry_msgs::PoseArray currentWaypointList;
 	float currentSamplingTime;
@@ -53,14 +52,12 @@ private:
 	// Status variables
 	mavros_msgs::State currentStateMavros;
 	float joystickVal[4]; //x,y,z,yaw
-	bool trajTimerStatus;
 	
 	// From Parameter Server
-	vector<float> xBounds;
-	vector<float> yBounds;
-	vector<float> zBounds;
-	vector<float> takeoffPosition;
-	float successRadius;
+	float xBounds[2];
+	float yBounds[2];
+	float zBounds[2];
+	float takeoffPosition[3];
 	int armButton;
 	int disarmButton;
 	int aButton;
@@ -72,28 +69,29 @@ private:
 	
 public:
 
-	drone_pose_class(ros::NodeHandle *nh)
+	drone_pose(ros::NodeHandle *nh)
 	{
 		wait_for_params(nh);
 		
 		// Subscribers
-		stateMavrosSub = nh->subscribe("mavros_state_topic", 10, &drone_pose_class::state_mavros_cb, this);
-		joySub = nh->subscribe("joy_topic", 100, &drone_pose_class::joy_cb, this);
-		poseSub = nh->subscribe("pose_topic", 100, &drone_pose_class::pose_cb, this);
-		trajectorySub = nh->subscribe("trajectory_topic", 10, &drone_pose_class::trajectory_cb, this);
+		stateMavrosSub = nh->subscribe("mavros_state_topic", 10, &drone_pose::state_mavros_cb, this);
+		joySub = nh->subscribe("joy_topic", 100, &drone_pose::joy_cb, this);
+		odomSub = nh->subscribe("odometry_topic", 100, &drone_pose::odom_cb, this);
+		setpointSub = nh->subscribe("setpoint_topic", 10, &drone_pose::setpoint_cb, this);
+		trajectorySub = nh->subscribe("trajectory_topic", 10, &drone_pose::trajectory_cb, this);
 		
 		// Publishers
 		setpointPub = nh->advertise<geometry_msgs::PoseStamped>("setpoint_topic", 10);
 		
 		// Servers
-		flightModeServer = nh->advertiseService("flight_mode_service", &drone_pose_class::flightMode_cb, this);
+		flightModeServer = nh->advertiseService(flight_mode_service, &drone_pose::flightMode_cb, this);
 		
 		// Clients
 		armingClient = nh->serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
 		setModeClient = nh->serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
 		
 		//Timers
-		trajTimer = nh->createTimer(ros::Duration(0.2), &drone_pose_class::traj_timer_cb, this);
+		trajTimer = nh.createTimer(ros::Duration(1), &drone_pose::traj_timer_cb, this);
 		trajTimer.stop();
 		
 		init();
@@ -101,10 +99,10 @@ public:
 	
 	// Callbacks
 	void state_mavros_cb(const mavros_msgs::State&);
-	void pose_cb(const geometry_msgs::PoseStamped&);
+	void joy_cb(const sensor_msgs::Joy&);
+	void odom_cb(const nav_msgs::Odometry&);
 	void traj_timer_cb(const ros::TimerEvent&);
 	void trajectory_cb(const drone_pose::trajectoryMsg&);
-	void joy_cb(const sensor_msgs::Joy&);
 	bool flightMode_cb(drone_pose::flightModeSrv::Request&,
 										 drone_pose::flightModeSrv::Response&);
 									 
@@ -112,22 +110,13 @@ public:
 	void wait_for_params(ros::NodeHandle*);
 	void init();
 	bool isBounded(geometry_msgs::PoseStamped&);
-	void set_setpoint_from_raw(float, float, float, float, float, float);
-	void increment_setpoint(float, float, float, float, float, float, bool);
-	float pose_distance(geometry_msgs::Pose, geometry_msgs::Pose);
-	geometry_msgs::PoseStamped get_current_setpoint();
-	float get_current_sampling_time();
-	char get_current_flight_mode();
-	void publish_current_setpoint();
-	void start_traj_timer(float);
-	void stop_traj_timer();
 	
 };
 
 
 //////////////////////////////////////////////////////////////////////
 
-void drone_pose_class::joy_cb(const sensor_msgs::Joy& msg)
+void drone_pose::joy_cb(const sensor_msgs::Joy& msg)
 {
 	mavros_msgs::SetMode setMode;
 	mavros_msgs::CommandBool armingCommand;
@@ -159,14 +148,11 @@ void drone_pose_class::joy_cb(const sensor_msgs::Joy& msg)
 		setMode.request.custom_mode = "STABILIZED";
 		armingCommand.request.value = false;
 		
-		if(armingClient.call(armingCommand))
-		ROS_INFO("DIS-ARMED: Service call successful");
-		else
-		{
-		ROS_WARN("Could not disarm the vehicle: Service call unsuccessful");
-		return;
-		}
+		while(!armingClient.call(armingCommand))
+		ROS_WARN("Could not disarm the vehicle: Service call unsuccessful, Trying again ...");
 		
+		ROS_INFO("DIS-ARMED: Service call successful");
+
 		if(setModeClient.call(setMode))
 		ROS_INFO("STABILIZED: Service call successful");
 		else
@@ -178,20 +164,20 @@ void drone_pose_class::joy_cb(const sensor_msgs::Joy& msg)
 
 	if(msg.buttons[aButton] == 1)
 	{
-		currentFlightMode = 'J';
+		flightMode = 'J';
 
 		currentSetpoint.header.stamp = ros::Time::now();
 		
-		currentSetpoint.pose = currentPose.pose;		
+		currentSetpoint.pose = currentOdom.pose.pose;		
 		
-		ROS_WARN("Flight Mode set to '%c'", currentFlightMode);
+		ROS_INFO("Mode : J");
 		ROS_INFO("Setpoint set to current pose");
 	}
 
 	if(msg.buttons[bButton] == 1)
 	{
-		currentFlightMode = 'H';
-		ROS_WARN("Flight Mode set to '%c'", currentFlightMode);
+		flightMode = 'H';
+		ROS_INFO("Mode : H");
  	}
 
 	if(abs(msg.axes[xAxis])>0.2) //X
@@ -215,47 +201,14 @@ void drone_pose_class::joy_cb(const sensor_msgs::Joy& msg)
 		joystickVal[3] = 0;
 }
 
-// ***********************************************************************
-void drone_pose_class::trajectory_cb(const drone_pose::trajectoryMsg& msg)
-{	
-	if(msg.samplingTime != currentSamplingTime && msg.samplingTime > 0)
-	{
-		start_traj_timer(msg.samplingTime);
-	}
-	else if(msg.samplingTime != currentSamplingTime && msg.samplingTime <= 0)
-	{
-		ROS_WARN("Trajectory received with invalid sampling time %f", msg.samplingTime);
-		return;
-	} 
-	
-	if(msg.appendRefresh)
-	{
-		currentWaypointList.poses.clear();
-		currentWaypointId = 0;
-	}
-	
-	for (int i = 0; i < msg.poses.size(); i++)	
-	currentWaypointList.poses.push_back(msg.poses[i]);
-}
-
 // ********************************************************************
-void drone_pose_class::traj_timer_cb(const ros::TimerEvent&)
+void drone_pose::traj_timer_cb(const ros::TimerEvent&)
 {
-	//cout << "Traj timer callback called" <<endl;
-	if(!(currentFlightMode == 'T' || currentFlightMode == 'W' || currentFlightMode == 'H'))
-	return;
-	
-	if(currentFlightMode == 'H')
-	{
-	publish_current_setpoint();	
-	return;
-	}
+	if(!(currentFlightMode == 'T' || currentFlightMode == 'W'))
+		return;
 	
 	if(currentWaypointList.poses.empty())
-	{
-		publish_current_setpoint();
-		return;
-	}
+	currentFlightMode = 'H';
 	
 	if (currentFlightMode == 'T')
 	{
@@ -266,8 +219,10 @@ void drone_pose_class::traj_timer_cb(const ros::TimerEvent&)
 		
 		cout << "Publishing waypoint " << currentWaypointId << endl;
 		
+		currentSetpoint.header.stamp = ros::Time::now();
 		currentSetpoint.pose = currentWaypointList.poses.at(currentWaypointId);
-		publish_current_setpoint();
+		
+		setpointPub.publish(currentSetpoint);
 		
 		currentWaypointId += 1;
 		
@@ -279,28 +234,30 @@ void drone_pose_class::traj_timer_cb(const ros::TimerEvent&)
 	{
 		cout << "Waypoint Array Size : " << currentWaypointList.poses.size() << endl;
 		
-		//if(currentWaypointId == currentWaypointList.poses.size())
-		//currentWaypointId -= 1;
+		if(currentWaypointId == currentWaypointList.poses.size())
+		currentWaypointId -= 1;
 		
 		cout << "Publishing waypoint " << currentWaypointId << endl;
 		
-		currentSetpoint.pose = currentWaypointList.poses.at(0);
-		publish_current_setpoint();
+		currentSetpoint.header.stamp = ros::Time::now();
+		currentSetpoint.pose = currentWaypointList.poses.at(currentWaypointId);
 		
-		if(pose_distance(currentSetpoint.pose, currentPose.pose) < successRadius)
-		{
-		currentWaypointList.poses.erase(currentWaypointList.poses.begin());
+		setpointPub.publish(currentSetpoint);
+		
+		if(distance(currentSetpoint, currentPose) < successRadius)
 		currentWaypointId += 1;
-		}
 		
 		cout << "Next waypoint in queue " << currentWaypointId << endl;
 		return;
 	}
 	
+	if(currentFlightMode == 'H')
+	publish_current_waypoint();	
+	
 }
 
 // *********************************************************************
-void drone_pose_class::wait_for_params(ros::NodeHandle *nh)
+void drone_pose::wait_for_params(ros::NodeHandle *nh)
 {
 	while(!nh->getParam("drone_pose_node/x_bounds", xBounds));
 	while(!nh->getParam("drone_pose_node/y_bounds", yBounds));
@@ -319,13 +276,11 @@ void drone_pose_class::wait_for_params(ros::NodeHandle *nh)
 	while(!nh->getParam("drone_pose_node/z_axis", zAxis));
 	while(!nh->getParam("drone_pose_node/yaw_axis", yawAxis));
 	
-	while(!nh->getParam("drone_pose_node/successRadius", successRadius));
-	
 	ROS_INFO("Parameters for drone_pose retreived from the parameter server");
 }
 
 //*****************************************************************
-void drone_pose_class::init() 
+void drone_pose::init() 
 {
 	// Create and set target position
 	tf::Quaternion quadOrientation;
@@ -343,69 +298,85 @@ void drone_pose_class::init()
 	currentSetpoint.pose.orientation.w = quadOrientation.w();
 	
 	currentWaypointList.poses.clear();
-	
-	currentSamplingTime = 0.2;
-	trajTimerStatus = true;
-	stop_traj_timer();
-	
-	currentWaypointId = 0;
-	
-	joystickVal[0] = 0;
-	joystickVal[1] = 0;
-	joystickVal[2] = 0;
-	joystickVal[3] = 0;
 
 	currentFlightMode = 'J';
 	
 	ROS_INFO("Initialized drone_pose");
-	ROS_WARN("Flight Mode set to '%c'", currentFlightMode);
 	
 	ROS_INFO("Waiting for mavros to connect ...");
-	cout << currentSetpoint.pose.position.x <<endl;
-	cout << currentSetpoint.pose.position.y <<endl;
-	cout << currentSetpoint.pose.position.z <<endl;
 }
 
 // *******************************************************************
-bool drone_pose_class::isBounded(geometry_msgs::PoseStamped& point)
+bool drone_pose::isBounded(geometry_msgs::PoseStamped& point)
 {
 	//float x_ref = setpoint.pose.position.x;
 	//float y_ref = setpoint.pose.position.y;
 	//float z_ref = setpoint.pose.position.z;
 
-	if(point.pose.position.x < xBounds[0])
-	point.pose.position.x = xBounds[0];
-	if(point.pose.position.x > xBounds[1])
-	point.pose.position.x = xBounds[1];
+	if(point.pose.position.x < x_bounds[0])
+	point.pose.position.x = x_bounds[0];
+	if(point.pose.position.x > x_bounds[1])
+	point.pose.position.x = x_bounds[1];
 
-	if(point.pose.position.y < yBounds[0])
-	point.pose.position.y = yBounds[0];
-	if(point.pose.position.y > yBounds[1])
-	point.pose.position.y = yBounds[1];
+	if(point.pose.position.y < y_bounds[0])
+	point.pose.position.y = y_bounds[0];
+	if(point.pose.position.y > y_bounds[1])
+	point.pose.position.y = y_bounds[1];
 
-	if(point.pose.position.z < zBounds[0])
-	point.pose.position.z = zBounds[0];
-	if(point.pose.position.z > zBounds[1])
-	point.pose.position.z = zBounds[1];
+	if(point.pose.position.z < z_bounds[0])
+	point.pose.position.z = z_bounds[0];
+	if(point.pose.position.z > z_bounds[1])
+	point.pose.position.z = z_bounds[1];
 	return 0;
 }
 
 // ***********************************************************************
-bool drone_pose_class::flightMode_cb(drone_pose::flightModeSrv::Request& req,	
+
+void drone_pose::trajectory_cb(const drone_pose::trajectoryMsg& msg)
+{	
+	if(msg.samplingTime != currentSamplingTime && msg.samplingTime > 0)
+	{
+		set_current_sampling_time(msg.samplingTime);
+		start_traj_timer();
+	}
+	else if(msg.samplingTime != currentSamplingTime && msg.samplingTime <= 0)
+	{
+		ROS_WARN("Trajectory received with invalid sampling time %f", msg.samplingTime);
+		return;
+	} 
+	
+	if(msg.appendRefresh)
+	{
+		currentWaypointList.poses.clear();
+		currentWaypointId = 0;
+	}
+		
+	if(msg.nPoints == 0)
+		return;
+	
+	for (int i = 0; i < msg.nPoints; i++)	
+	currentWaypointList.poses.push_back(msg.poses[i]);
+}
+
+// ***********************************************************************
+bool drone_pose::flightMode_cb(drone_pose::flightModeSrv::Request& req,	
 									 drone_pose::flightModeSrv::Response& res)
 {
 	if (req.setGet == 0 && currentFlightMode != 'J')
 	{
 		if (req.flightMode == 'H' || req.flightMode == 'W' || req.flightMode == 'T')
-		currentFlightMode = req.flightMode;
-
+		{
+			currentFlightMode = req.flightMode;
+			res.flightMode = currentFlightMode;
+			set_current_sampling_time(5);
+			start_traj_timer();
+		}
 		else
 		ROS_WARN("Unrecognized mode transition requested");
 	}
-	
 	res.flightMode = currentFlightMode;
 		
-	ROS_WARN("Flight mode transition request received: set to '%c'", currentFlightMode);
+	ROS_INFO("Mode Modified To : %c",flightMode);
 	
 	return true;
 }
@@ -413,65 +384,43 @@ bool drone_pose_class::flightMode_cb(drone_pose::flightModeSrv::Request& req,
 
 // ***********************************************************************
 
-void drone_pose_class::pose_cb(const geometry_msgs::PoseStamped& msg)
+void drone_pose::odom_cb(const nav_msgs::Odometry& msg)
 {
-	currentPose = msg;
+	currentOdom = msg;
 }
 
 // ***********************************************************************
-void drone_pose_class::state_mavros_cb(const mavros_msgs::State& msg)
+void drone_pose::state_mavros_cb(const mavros_msgs::State& msg)
 {
 	currentStateMavros = msg;
 	
-	static bool status = false;
-	
-	if(!status && currentStateMavros.connected)
+	if(msg.connected)
 	ROS_INFO("Mavros connected");
-	
-	else if(status && !currentStateMavros.connected)
-	ROS_WARN("Mavros to disconnected");
-	
-	status = currentStateMavros.connected;
+	else
+	ROS_WARN("Still waiting for mavros to connect ...");
 }
 
 // ***********************************************************************
-char drone_pose_class::get_current_flight_mode()
+char get_current_flight_mode()
 {
 	return currentFlightMode;
 }
 
 // ***********************************************************************
-geometry_msgs::PoseStamped drone_pose_class::get_current_setpoint()
+geometry_msgs::PoseStamped get_current_setpoint()
 {
 	return currentSetpoint;
 }
 
 // ***********************************************************************
-float drone_pose_class::get_current_sampling_time()
+float get_current_sampling_time();
 {
 	return currentSamplingTime;
 }
 
 // ***********************************************************************
-void drone_pose_class::increment_setpoint(float dx, float dy, float dz, float droll, float dpitch, float dyaw, bool add)
+void increment_setpoint(float dx, float dy, float dz, float droll, float dpitch, float dyaw)
 {
-
-	//cout << "Joystick Value: (" << joystickVal[0] << ", " 
-	//														<< joystickVal[1] << ", "
-	//														<< joystickVal[2] << ", "
-	//														<< joystickVal[3] << ")" << endl;
-	
-	if(!add)
-	{
-		dx = dx*joystickVal[0];
-		dy = dy*joystickVal[1];
-		dz = dz*joystickVal[2];
-		
-		droll = 0;
-		dpitch = 0;
-		dyaw = dyaw*joystickVal[3];
-	}
-	
 	currentSetpoint.pose.position.x += dx;
   currentSetpoint.pose.position.y += dy;
   currentSetpoint.pose.position.z += dz;
@@ -481,14 +430,15 @@ void drone_pose_class::increment_setpoint(float dx, float dy, float dz, float dr
   															 currentSetpoint.pose.orientation.z,
   															 currentSetpoint.pose.orientation.w);
   															 
-  double currentRoll, currentPitch, currentYaw;
+  float currentRoll, currentPitch, currentYaw;
 	tf::Matrix3x3(quadOrientation).getRPY(currentRoll, currentPitch, currentYaw);
   
   currentRoll += droll;
   currentPitch += dpitch;
-  currentYaw += dyaw;
+  currentyaw += dyaw;
   
-	quadOrientation.setRPY(currentRoll, currentPitch, currentYaw);
+  tf::Quaternion quadOrientation;
+	quadOrientation.setRPY(currentRoll, currentPitch, currentyaw);
 	
 	currentSetpoint.pose.orientation.x = quadOrientation.x();
 	currentSetpoint.pose.orientation.y = quadOrientation.y();
@@ -497,42 +447,27 @@ void drone_pose_class::increment_setpoint(float dx, float dy, float dz, float dr
 }
 
 // *********************************************************************
-void drone_pose_class::publish_current_setpoint()
+void publish_current_setpoint()
 {
-	//cout << "Publishing pose setpoint : (" << currentSetpoint.pose.position.x << ", "
-	//																			 << currentSetpoint.pose.position.y << ", "
-	//																			 << currentSetpoint.pose.position.z << ")" << endl;
 	isBounded(currentSetpoint);
-	currentSetpoint.header.stamp = ros::Time::now();
 	setpointPub.publish(currentSetpoint);
 }
 
 // ***********************************************************************
-void drone_pose_class::stop_traj_timer()
+void drone_pose::stop_traj_timer()
 {
 	trajTimer.stop();
-	
-	if(trajTimerStatus)
-	ROS_INFO("Trajectory timer stopped");
-	
-	trajTimerStatus = false;
 }
 
 // ***********************************************************************
-void drone_pose_class::start_traj_timer(float samplingTime)
+void drone_pose::start_traj_timer()
 {
-	currentSamplingTime = samplingTime;
 	trajTimer.setPeriod(ros::Duration(currentSamplingTime), false);
 	trajTimer.start();
-	
-	if(!trajTimerStatus)
-	ROS_INFO("Trajectory timer started with sampling time %f", currentSamplingTime);
-	
-	trajTimerStatus = true;
 }
 
 // ***********************************************************************
-void drone_pose_class::set_setpoint_from_raw(float x, float y, float z, float roll, float pitch, float yaw)
+void set_setpoint_from_raw(float x, float y, float z, float roll, float pitch, float yaw);
 {
 	currentSetpoint.header.stamp = ros::Time::now();
 	
@@ -548,43 +483,15 @@ void drone_pose_class::set_setpoint_from_raw(float x, float y, float z, float ro
 	currentSetpoint.pose.orientation.z = quadOrientation.z();
 	currentSetpoint.pose.orientation.w = quadOrientation.w();
 }
-
-// *************************************************************************
-float drone_pose_class::pose_distance(geometry_msgs::Pose pose1, geometry_msgs::Pose pose2)
-{
-	float x_err = pose1.position.x - pose2.position.x;
-	float y_err = pose1.position.y - pose2.position.y;
-	float z_err = pose1.position.z - pose2.position.z;
-	
-	tf::Quaternion quadOrientation1(pose1.orientation.x,
-  															 pose1.orientation.y,
-  															 pose1.orientation.z,
-  															 pose1.orientation.w);
-  															 
-  tf::Quaternion quadOrientation2(pose2.orientation.x,
-  															 pose2.orientation.y,
-  															 pose2.orientation.z,
-  															 pose2.orientation.w);
-  															 
-  double currentRoll1, currentPitch1, currentYaw1;
-	tf::Matrix3x3(quadOrientation1).getRPY(currentRoll1, currentPitch1, currentYaw1);
-	
-	double currentRoll2, currentPitch2, currentYaw2;
-	tf::Matrix3x3(quadOrientation2).getRPY(currentRoll2, currentPitch2, currentYaw2);
-	
-	float yaw_err = currentYaw1 - currentYaw2;
-	
-	return sqrt(pow(x_err,2) + pow(y_err,2) + pow(z_err,2) + pow(yaw_err,2));
-}
 /////////////////////////////////////////////////////////////////////////
 
 // Main
 int main(int argc, char **argv)
 {
-	ros::init(argc, argv, "drone_pose_node");
+	ros::init(argc, argv, "drone_pose");
 	ros::NodeHandle nh;
 	
-	drone_pose_class dronePose(&nh);
+	drone_pose dronePose(&nh);
 
 	// Publish Rate
 	ros::Rate rate(250.0);
@@ -596,28 +503,30 @@ int main(int argc, char **argv)
 			case 'J' : // Joystick Mode
 				dronePose.stop_traj_timer();
 				
-				dronePose.increment_setpoint(0.004, 
-																		 0.004,
-																		 0.004,
+				dronePose.increment_setpoint(0.004*xbox_pose[0], 
+																		 0.004*xbox_pose[1],
+																		 0.004*xbox_pose[2],
 																		 0,
 																		 0,
-																		 0.004,
-																		 false);
+																		 0.004*xbox_pose[3]);
 				
 				dronePose.publish_current_setpoint();
 				break;
 			case 'H' : // Hold Mode
-				dronePose.start_traj_timer(dronePose.get_current_sampling_time());
+				//dronePose.start_traj_timer();
 				break;
 			case 'T' : // Trajectory Mode				
-				dronePose.start_traj_timer(dronePose.get_current_sampling_time());
+				//dronePose.start_traj_timer();
 				break;
 			case 'W' : // Waypoint Mode
-				dronePose.start_traj_timer(dronePose.get_current_sampling_time());
+				//dronePose.start_traj_timer();
+				break;
+			case 'S' : // Silent Mode
+				timer.stop();
 				break;
 			default :
-				//timer.stop();
-				ROS_WARN("Error! Flight Mode not recognized");
+				timer.stop();
+				ROS_WARN("Error! Flight Mode not recognized") << endl;
 				break;
 		}
 	
