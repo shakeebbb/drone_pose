@@ -2,6 +2,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Quaternion.h>
 #include <geometry_msgs/PoseArray.h>
+#include <geometry_msgs/Twist.h>
 #include <nav_msgs/Odometry.h>
 #include <mavros_msgs/PositionTarget.h>
 #include <mavros_msgs/CommandBool.h>
@@ -55,6 +56,7 @@ private:
 	mavros_msgs::State currentStateMavros;
 	float joystickVal[4]; //x,y,z,yaw
 	bool trajTimerStatus;
+	geometry_msgs::Twist potentialField;
 	
 	// From Parameter Server
 	vector<float> xBounds;
@@ -119,9 +121,10 @@ public:
 	geometry_msgs::PoseStamped get_current_setpoint();
 	float get_current_sampling_time();
 	char get_current_flight_mode();
-	void publish_current_setpoint();
+	void publish_current_setpoint(bool);
 	void start_traj_timer(float);
 	void stop_traj_timer();
+	void update_pf_from_joy();
 	
 };
 
@@ -248,13 +251,13 @@ void drone_pose_class::traj_timer_cb(const ros::TimerEvent&)
 	
 	if(currentFlightMode == 'H')
 	{
-	publish_current_setpoint();	
+	publish_current_setpoint(false);	
 	return;
 	}
 	
 	if(currentWaypointList.poses.empty())
 	{
-		publish_current_setpoint();
+		publish_current_setpoint(false);
 		return;
 	}
 	
@@ -268,7 +271,7 @@ void drone_pose_class::traj_timer_cb(const ros::TimerEvent&)
 		cout << "Publishing waypoint " << currentWaypointId << endl;
 		
 		currentSetpoint.pose = currentWaypointList.poses.at(currentWaypointId);
-		publish_current_setpoint();
+		publish_current_setpoint(false);
 		
 		currentWaypointId += 1;
 		
@@ -286,7 +289,7 @@ void drone_pose_class::traj_timer_cb(const ros::TimerEvent&)
 		cout << "Publishing waypoint " << currentWaypointId << endl;
 		
 		currentSetpoint.pose = currentWaypointList.poses.at(0);
-		publish_current_setpoint();
+		publish_current_setpoint(false);
 		
 		if(pose_distance(currentSetpoint.pose, currentPose.pose) < successRadius)
 		{
@@ -498,7 +501,7 @@ void drone_pose_class::increment_setpoint(float dx, float dy, float dz, float dr
 }
 
 // *********************************************************************
-void drone_pose_class::publish_current_setpoint()
+void drone_pose_class::publish_current_setpoint(bool usePf)
 {
 	//cout << "Publishing pose setpoint : (" << currentSetpoint.pose.position.x << ", "
 	//																			 << currentSetpoint.pose.position.y << ", "
@@ -506,9 +509,21 @@ void drone_pose_class::publish_current_setpoint()
 	isBounded(currentSetpoint);
 	
 	mavros_msgs::PositionTarget targetSetpoint;
-	
 	targetSetpoint.header.stamp = ros::Time::now();
-	targetSetpoint.coordinate_frame = targetSetpoint.FRAME_LOCAL_NED;
+	targetSetpoint.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
+	
+	targetSetpoint.position = currentSetpoint.pose.position;
+	targetSetpoint.velocity = potentialField.linear;
+	targetSetpoint.yaw_rate = potentialField.angular.z;
+	
+	/*
+	if(usePf && potentialField.linear.x != 0 
+					 && potentialField.linear.y != 0
+					 && potentialField.linear.z != 0
+					 && potentialField.angular.x != 0
+					 && potentialField.angular.y != 0
+					 && potentialField.angular.z != 0)
+	{
 	targetSetpoint.type_mask = mavros_msgs::PositionTarget::IGNORE_VX |
 														 mavros_msgs::PositionTarget::IGNORE_VY |
 														 mavros_msgs::PositionTarget::IGNORE_VZ |
@@ -517,7 +532,17 @@ void drone_pose_class::publish_current_setpoint()
 														 mavros_msgs::PositionTarget::IGNORE_AFZ |
 														 mavros_msgs::PositionTarget::FORCE |
 														 mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
-	targetSetpoint.position = currentSetpoint.pose.position;
+	}
+	*/
+	
+	targetSetpoint.type_mask = mavros_msgs::PositionTarget::IGNORE_VX |
+														 mavros_msgs::PositionTarget::IGNORE_VY |
+														 mavros_msgs::PositionTarget::IGNORE_VZ |
+														 mavros_msgs::PositionTarget::IGNORE_AFX |
+														 mavros_msgs::PositionTarget::IGNORE_AFY |
+														 mavros_msgs::PositionTarget::IGNORE_AFZ |
+														 mavros_msgs::PositionTarget::FORCE |
+														 mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
 	
 	tf::Quaternion quadOrientation(currentSetpoint.pose.orientation.x,
   															 currentSetpoint.pose.orientation.y,
@@ -601,6 +626,16 @@ float drone_pose_class::pose_distance(geometry_msgs::Pose pose1, geometry_msgs::
 	
 	return sqrt(pow(x_err,2) + pow(y_err,2) + pow(z_err,2) + pow(yaw_err,2));
 }
+
+// ***********************************************************************
+
+void drone_pose_class::update_pf_from_joy()
+{
+	potentialField.linear.x = 0.005*joystickVal[0];
+	potentialField.linear.y = 0.005*joystickVal[1];
+	potentialField.linear.z = 0.005*joystickVal[2];
+	potentialField.angular.z = 0.005*joystickVal[3];
+}
 /////////////////////////////////////////////////////////////////////////
 
 // Main
@@ -629,10 +664,13 @@ int main(int argc, char **argv)
 																		 0.004,
 																		 false);
 				
-				dronePose.publish_current_setpoint();
+				dronePose.publish_current_setpoint(false);
 				break;
 			case 'H' : // Hold Mode
 				dronePose.start_traj_timer(dronePose.get_current_sampling_time());
+				//dronePose.stop_traj_timer();
+				//dronePose.update_pf_from_joy();
+				//dronePose.publish_current_setpoint(true);
 				break;
 			case 'T' : // Trajectory Mode				
 				dronePose.start_traj_timer(dronePose.get_current_sampling_time());
