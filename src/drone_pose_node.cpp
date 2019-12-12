@@ -511,38 +511,11 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 	mavros_msgs::PositionTarget targetSetpoint;
 	targetSetpoint.header.stamp = ros::Time::now();
 	targetSetpoint.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
-	
+	//targetSetpoint.header.frame_id = currentPose.header.frame_id;
+		
 	targetSetpoint.position = currentSetpoint.pose.position;
 	targetSetpoint.velocity = potentialField.linear;
 	targetSetpoint.yaw_rate = potentialField.angular.z;
-	
-	/*
-	if(usePf && potentialField.linear.x != 0 
-					 && potentialField.linear.y != 0
-					 && potentialField.linear.z != 0
-					 && potentialField.angular.x != 0
-					 && potentialField.angular.y != 0
-					 && potentialField.angular.z != 0)
-	{
-	targetSetpoint.type_mask = mavros_msgs::PositionTarget::IGNORE_VX |
-														 mavros_msgs::PositionTarget::IGNORE_VY |
-														 mavros_msgs::PositionTarget::IGNORE_VZ |
-														 mavros_msgs::PositionTarget::IGNORE_AFX |
-														 mavros_msgs::PositionTarget::IGNORE_AFY |
-														 mavros_msgs::PositionTarget::IGNORE_AFZ |
-														 mavros_msgs::PositionTarget::FORCE |
-														 mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
-	}
-	*/
-	
-	targetSetpoint.type_mask = mavros_msgs::PositionTarget::IGNORE_VX |
-														 mavros_msgs::PositionTarget::IGNORE_VY |
-														 mavros_msgs::PositionTarget::IGNORE_VZ |
-														 mavros_msgs::PositionTarget::IGNORE_AFX |
-														 mavros_msgs::PositionTarget::IGNORE_AFY |
-														 mavros_msgs::PositionTarget::IGNORE_AFZ |
-														 mavros_msgs::PositionTarget::FORCE |
-														 mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
 	
 	tf::Quaternion quadOrientation(currentSetpoint.pose.orientation.x,
   															 currentSetpoint.pose.orientation.y,
@@ -552,7 +525,38 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
   double localRoll, localPitch, localYaw;
 	tf::Matrix3x3(quadOrientation).getRPY(localRoll, localPitch, localYaw);			
 	
-	targetSetpoint.yaw = localYaw;							 
+	targetSetpoint.yaw = localYaw;
+	
+	targetSetpoint.type_mask = mavros_msgs::PositionTarget::IGNORE_VX |
+														 mavros_msgs::PositionTarget::IGNORE_VY |
+														 mavros_msgs::PositionTarget::IGNORE_VZ |
+														 mavros_msgs::PositionTarget::IGNORE_AFX |
+														 mavros_msgs::PositionTarget::IGNORE_AFY |
+														 mavros_msgs::PositionTarget::IGNORE_AFZ |
+														 mavros_msgs::PositionTarget::FORCE |
+														 mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
+	
+
+	if(usePf && potentialField.linear.x != 0)
+	{
+	targetSetpoint.type_mask = ~mavros_msgs::PositionTarget::IGNORE_VX & targetSetpoint.type_mask;
+	targetSetpoint.type_mask = mavros_msgs::PositionTarget::IGNORE_PX | targetSetpoint.type_mask;
+	}
+	if(usePf && potentialField.linear.y != 0)
+	{
+	targetSetpoint.type_mask = ~mavros_msgs::PositionTarget::IGNORE_VY & targetSetpoint.type_mask;
+	targetSetpoint.type_mask = mavros_msgs::PositionTarget::IGNORE_PY | targetSetpoint.type_mask;
+	}
+	if(usePf && potentialField.linear.z != 0)
+	{
+	targetSetpoint.type_mask = ~mavros_msgs::PositionTarget::IGNORE_VZ & targetSetpoint.type_mask;
+	targetSetpoint.type_mask = mavros_msgs::PositionTarget::IGNORE_PZ | targetSetpoint.type_mask;
+	}
+	if(usePf && potentialField.angular.z != 0)
+	{
+	targetSetpoint.type_mask = ~mavros_msgs::PositionTarget::IGNORE_YAW_RATE & targetSetpoint.type_mask;
+	targetSetpoint.type_mask = mavros_msgs::PositionTarget::IGNORE_YAW | targetSetpoint.type_mask;
+	}							 
 	
 	setpointPub.publish(targetSetpoint);
 }
