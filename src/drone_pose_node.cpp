@@ -3,6 +3,7 @@
 #include <geometry_msgs/Quaternion.h>
 #include <geometry_msgs/PoseArray.h>
 #include <nav_msgs/Odometry.h>
+#include <mavros_msgs/PositionTarget.h>
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/State.h>
@@ -83,7 +84,7 @@ public:
 		trajectorySub = nh->subscribe("trajectory_topic", 10, &drone_pose_class::trajectory_cb, this);
 		
 		// Publishers
-		setpointPub = nh->advertise<geometry_msgs::PoseStamped>("setpoint_topic", 10);
+		setpointPub = nh->advertise<mavros_msgs::PositionTarget>("setpoint_topic", 10);
 		
 		// Servers
 		flightModeServer = nh->advertiseService("flight_mode_service", &drone_pose_class::flightMode_cb, this);
@@ -481,14 +482,14 @@ void drone_pose_class::increment_setpoint(float dx, float dy, float dz, float dr
   															 currentSetpoint.pose.orientation.z,
   															 currentSetpoint.pose.orientation.w);
   															 
-  double currentRoll, currentPitch, currentYaw;
-	tf::Matrix3x3(quadOrientation).getRPY(currentRoll, currentPitch, currentYaw);
+  double localRoll, localPitch, localYaw;
+	tf::Matrix3x3(quadOrientation).getRPY(localRoll, localPitch, localYaw);
   
-  currentRoll += droll;
-  currentPitch += dpitch;
-  currentYaw += dyaw;
+  localRoll += droll;
+  localPitch += dpitch;
+  localYaw += dyaw;
   
-	quadOrientation.setRPY(currentRoll, currentPitch, currentYaw);
+	quadOrientation.setRPY(localRoll, localPitch, localYaw);
 	
 	currentSetpoint.pose.orientation.x = quadOrientation.x();
 	currentSetpoint.pose.orientation.y = quadOrientation.y();
@@ -503,8 +504,32 @@ void drone_pose_class::publish_current_setpoint()
 	//																			 << currentSetpoint.pose.position.y << ", "
 	//																			 << currentSetpoint.pose.position.z << ")" << endl;
 	isBounded(currentSetpoint);
-	currentSetpoint.header.stamp = ros::Time::now();
-	setpointPub.publish(currentSetpoint);
+	
+	mavros_msgs::PositionTarget targetSetpoint;
+	
+	targetSetpoint.header.stamp = ros::Time::now();
+	targetSetpoint.coordinate_frame = targetSetpoint.FRAME_LOCAL_NED;
+	targetSetpoint.type_mask = mavros_msgs::PositionTarget::IGNORE_VX |
+														 mavros_msgs::PositionTarget::IGNORE_VY |
+														 mavros_msgs::PositionTarget::IGNORE_VZ |
+														 mavros_msgs::PositionTarget::IGNORE_AFX |
+														 mavros_msgs::PositionTarget::IGNORE_AFY |
+														 mavros_msgs::PositionTarget::IGNORE_AFZ |
+														 mavros_msgs::PositionTarget::FORCE |
+														 mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
+	targetSetpoint.position = currentSetpoint.pose.position;
+	
+	tf::Quaternion quadOrientation(currentSetpoint.pose.orientation.x,
+  															 currentSetpoint.pose.orientation.y,
+  															 currentSetpoint.pose.orientation.z,
+  															 currentSetpoint.pose.orientation.w);
+  															 
+  double localRoll, localPitch, localYaw;
+	tf::Matrix3x3(quadOrientation).getRPY(localRoll, localPitch, localYaw);			
+	
+	targetSetpoint.yaw = localYaw;							 
+	
+	setpointPub.publish(targetSetpoint);
 }
 
 // ***********************************************************************
