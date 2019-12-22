@@ -358,6 +358,8 @@ void drone_pose_class::init()
 
 	currentSetpoint.header.stamp = ros::Time::now();
 
+	currentSetpoint.header.frame_id = "map";
+	
 	currentSetpoint.pose.position.x = takeoffPositionParam[0];
 	currentSetpoint.pose.position.y = takeoffPositionParam[1];
 	currentSetpoint.pose.position.z = takeoffPositionParam[2];
@@ -366,6 +368,12 @@ void drone_pose_class::init()
 	currentSetpoint.pose.orientation.y = quadOrientation.y();
 	currentSetpoint.pose.orientation.z = quadOrientation.z();
 	currentSetpoint.pose.orientation.w = quadOrientation.w();
+	
+	quadOrientation.setRPY(0,0,0);
+	currentPose.pose.orientation.x = quadOrientation.x();
+	currentPose.pose.orientation.y = quadOrientation.y();
+	currentPose.pose.orientation.z = quadOrientation.z();
+	currentPose.pose.orientation.w = quadOrientation.w();
 	
 	currentWaypointList.poses.clear();
 	
@@ -550,20 +558,41 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 		// Assuming only position is transformed
 		resVec = transform_world_to_body(resVec, currentPose.pose, false);
 		
-		currentSetpoint.pose.position.x = resVec.x();
-		currentSetpoint.pose.position.y = resVec.y();
-		currentSetpoint.pose.position.z = resVec.z();
+		geometry_msgs::PoseStamped localSetpoint;
+		
+		localSetpoint.pose.position.x = resVec.x();
+		localSetpoint.pose.position.y = resVec.y();
+		localSetpoint.pose.position.z = resVec.z();
+		
+		localSetpoint.pose.orientation = currentSetpoint.pose.orientation;
+		
+		localSetpoint.header.stamp = ros::Time::now();
+	
+		if(!currentPose.header.frame_id.empty())
+		localSetpoint.header.frame_id = currentPose.header.frame_id;
+		else
+		localSetpoint.header.frame_id = currentSetpoint.header.frame_id;
 		
 		set_max_vel_params(resMag*maxXYVelParam, resMag*maxZVelParam, maxYawRateParam);
+		
+		isBounded(localSetpoint);
+		
+		setpointPub.publish(localSetpoint);
 	}
 	
+	else
+	{
 	isBounded(currentSetpoint);
+	
+	set_max_vel_params(maxXYVelParam, maxZVelParam, maxYawRateParam);
 	
 	currentSetpoint.header.stamp = ros::Time::now();
 	
+	if(!currentPose.header.frame_id.empty())
 	currentSetpoint.header.frame_id = currentPose.header.frame_id;					 
 	
 	setpointPub.publish(currentSetpoint);
+	}
 }
 
 // ***********************************************************************
@@ -586,6 +615,7 @@ float drone_pose_class::get_vector_magnitude(tf2::Vector3& inputVector)
 														inputVector.y()/mag,
 														inputVector.z()/mag);
 	
+	inputVector = outputVector;
 	return mag;
 }
 
@@ -715,10 +745,10 @@ float drone_pose_class::pose_distance(geometry_msgs::Pose pose1, geometry_msgs::
 
 void drone_pose_class::update_pf_from_joy()
 {
-	currentPotentialField.twist.linear.x = 0.005*currentJoystickVal[0];
-	currentPotentialField.twist.linear.y = 0.005*currentJoystickVal[1];
-	currentPotentialField.twist.linear.z = 0.005*currentJoystickVal[2];
-	currentPotentialField.twist.angular.z = 0.005*currentJoystickVal[3];
+	currentPotentialField.twist.linear.x = currentJoystickVal[0];
+	currentPotentialField.twist.linear.y = currentJoystickVal[1];
+	currentPotentialField.twist.linear.z = currentJoystickVal[2];
+	currentPotentialField.twist.angular.z = currentJoystickVal[3];
 }
 
 // ************************************************************************
@@ -729,6 +759,8 @@ void drone_pose_class::set_max_vel_params(float xyVel, float zVel, float yawRate
 	currentMaxZVel = zVel;
 	currentMaxYawRate = yawRate;
 	mavros_msgs::ParamSet paramSetSrv;
+	
+	ROS_INFO("Max velocities set to (%f, %f, %f)", currentMaxXYVel, currentMaxZVel, currentMaxYawRate);
 }
 
 // ************************************************************************
@@ -768,10 +800,10 @@ int main(int argc, char **argv)
 				dronePose.publish_current_setpoint(false);
 				break;
 			case 'H' : // Hold Mode
-				dronePose.start_traj_timer(dronePose.get_current_sampling_time());
-				//dronePose.stop_traj_timer();
-				//dronePose.update_pf_from_joy();
-				//dronePose.publish_current_setpoint(true);
+				//dronePose.start_traj_timer(dronePose.get_current_sampling_time());
+				dronePose.stop_traj_timer();
+				dronePose.update_pf_from_joy();
+				dronePose.publish_current_setpoint(true);
 				break;
 			case 'T' : // Trajectory Mode				
 				dronePose.start_traj_timer(dronePose.get_current_sampling_time());
