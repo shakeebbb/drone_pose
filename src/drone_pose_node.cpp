@@ -18,6 +18,7 @@
 #include <drone_pose/flightModeSrv.h>
 #include <mavros_msgs/ParamSet.h>
 #include <mavros_msgs/ParamGet.h>
+#include <tf2/LinearMath/Transform.h>
 
 using namespace std;
 
@@ -54,9 +55,9 @@ private:
 	geometry_msgs::PoseArray currentWaypointList;
 	float currentSamplingTime;
 	char currentFlightMode;
-	float currentMaxXYVelParam;
-	float currentMaxZVelParam;
-	float currentMaxYawRateParam;
+	float currentMaxXYVel;
+	float currentMaxZVel;
+	float currentMaxYawRate;
 	
 	// Status variables
 	mavros_msgs::State currentStateMavros;
@@ -78,6 +79,9 @@ private:
 	int yAxisParam;
 	int zAxisParam;
 	int yawAxisParam;
+	float maxXYVelParam;
+	float maxZVelParam;
+	float maxYawRateParam;
 	
 public:
 
@@ -135,6 +139,10 @@ public:
 	void update_pf_from_joy();
 	void set_max_vel_params(float, float, float);
 	void get_max_vel_params(float&, float&, float&);
+	float get_vector_magnitude(tf2::Vector3&);
+	tf2::Vector3 transform_world_to_body(geometry_msgs::Pose, geometry_msgs::Pose, bool);
+	tf2::Vector3 transform_world_to_body(tf2::Vector3, geometry_msgs::Pose, bool);
+	bool isPfActive();
 };
 
 
@@ -334,9 +342,9 @@ void drone_pose_class::wait_for_params(ros::NodeHandle *nh)
 	
 	while(!nh->getParam("drone_pose_node/successRadius", successRadiusParam));
 	
-	while(!nh->getParam("drone_pose_node/max_xy_vel", currentMaxXYVelParam));
-	while(!nh->getParam("drone_pose_node/max_z_vel", currentMaxZVelParam));
-	while(!nh->getParam("drone_pose_node/max_yaw_rate", currentMaxYawRateParam));
+	while(!nh->getParam("drone_pose_node/max_xy_vel", maxXYVelParam));
+	while(!nh->getParam("drone_pose_node/max_z_vel", maxZVelParam));
+	while(!nh->getParam("drone_pose_node/max_yaw_rate", maxYawRateParam));
 	
 	ROS_INFO("Parameters for drone_pose retreived from the parameter server");
 }
@@ -374,7 +382,7 @@ void drone_pose_class::init()
 
 	currentFlightMode = 'J';
 	
-	set_max_vel_params(currentMaxXYVelParam, currentMaxZVelParam, currentMaxYawRateParam);
+	set_max_vel_params(maxXYVelParam, maxZVelParam, maxYawRateParam);
 	
 	ROS_INFO("Initialized drone_pose");
 	ROS_WARN("Flight Mode set to '%c'", currentFlightMode);
@@ -520,7 +528,35 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 {
 	//cout << "Publishing pose setpoint : (" << currentSetpoint.pose.position.x << ", "
 	//																			 << currentSetpoint.pose.position.y << ", "
-	//																			 << currentSetpoint.pose.position.z << ")" << endl;
+	//																			 << currentSetpoint.pose.position.z << ")" << endl;	
+	
+	if(usePf && isPfActive())
+	{
+		// Assuming only position is transformed
+		tf2::Vector3 carrotVec = transform_world_to_body(currentSetpoint.pose, currentPose.pose, true);
+		tf2::Vector3 pfVec(currentPotentialField.twist.linear.x, 
+											 currentPotentialField.twist.linear.y, 
+											 currentPotentialField.twist.linear.z);
+		
+		float carrotMag = get_vector_magnitude(carrotVec);
+		float pfMag = get_vector_magnitude(pfVec);
+		
+		tf2::Vector3 resVec(pfMag*pfVec.x() + (1 - pfMag)*carrotVec.x(),
+												pfMag*pfVec.y() + (1 - pfMag)*carrotVec.y(),
+												pfMag*pfVec.z() + (1 - pfMag)*carrotVec.z());
+		
+		float resMag = get_vector_magnitude(resVec);
+		
+		// Assuming only position is transformed
+		resVec = transform_world_to_body(resVec, currentPose.pose, false);
+		
+		currentSetpoint.pose.position.x = resVec.x();
+		currentSetpoint.pose.position.y = resVec.y();
+		currentSetpoint.pose.position.z = resVec.z();
+		
+		set_max_vel_params(resMag*maxXYVelParam, resMag*maxZVelParam, maxYawRateParam);
+	}
+	
 	isBounded(currentSetpoint);
 	
 	currentSetpoint.header.stamp = ros::Time::now();
@@ -528,6 +564,81 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 	currentSetpoint.header.frame_id = currentPose.header.frame_id;					 
 	
 	setpointPub.publish(currentSetpoint);
+}
+
+// ***********************************************************************
+bool drone_pose_class::isPfActive()
+{
+	if(currentPotentialField.twist.linear.x != 0 ||
+		 currentPotentialField.twist.linear.y != 0 ||
+		 currentPotentialField.twist.linear.z != 0)
+	return true;
+	
+	return false;
+}
+
+// ***********************************************************************
+float drone_pose_class::get_vector_magnitude(tf2::Vector3& inputVector)
+{
+	float mag = sqrt(pow(inputVector.x(), 2) + pow(inputVector.y(), 2) + pow(inputVector.z(), 2));
+	
+	tf2::Vector3 outputVector(inputVector.x()/mag,
+														inputVector.y()/mag,
+														inputVector.z()/mag);
+	
+	return mag;
+}
+
+// ***********************************************************************
+tf2::Vector3 drone_pose_class::transform_world_to_body(geometry_msgs::Pose pose, geometry_msgs::Pose robotPose, bool transformDirection)
+{
+	tf2::Transform localTransform;
+	
+	tf2::Vector3 bodyTranslation(tf2::Vector3(robotPose.position.x, 
+																						robotPose.position.y, 
+																						robotPose.position.z));
+																						 
+	tf2::Quaternion bodyRotation(tf2::Quaternion(robotPose.orientation.x, 
+																							 robotPose.orientation.y, 
+																							 robotPose.orientation.z, 
+																							 robotPose.orientation.w));
+	
+	localTransform.setOrigin(bodyTranslation);
+	
+	localTransform.setRotation(bodyRotation);
+	
+	if(transformDirection)
+	return localTransform.inverse()*tf2::Vector3(pose.position.x,
+																					 		 pose.position.y,
+																							 pose.position.z);
+	else
+	return localTransform*tf2::Vector3(pose.position.x,
+																		 pose.position.y,
+																		 pose.position.z);
+}
+
+// ***********************************************************************
+tf2::Vector3 drone_pose_class::transform_world_to_body(tf2::Vector3 pose, geometry_msgs::Pose robotPose, bool transformDirection)
+{
+	tf2::Transform localTransform;
+	
+	tf2::Vector3 bodyTranslation(tf2::Vector3(robotPose.position.x, 
+																						robotPose.position.y, 
+																						robotPose.position.z));
+																						 
+	tf2::Quaternion bodyRotation(tf2::Quaternion(robotPose.orientation.x, 
+																							 robotPose.orientation.y, 
+																							 robotPose.orientation.z, 
+																							 robotPose.orientation.w));
+	
+	localTransform.setOrigin(bodyTranslation);
+	
+	localTransform.setRotation(bodyRotation);
+	
+	if(transformDirection)
+	return localTransform.inverse()*pose;
+	else
+	return localTransform*pose;
 }
 
 // ***********************************************************************
@@ -614,9 +725,9 @@ void drone_pose_class::update_pf_from_joy()
 
 void drone_pose_class::set_max_vel_params(float xyVel, float zVel, float yawRate)
 {
-	currentMaxXYVelParam = xyVel;
-	currentMaxZVelParam = zVel;
-	currentMaxYawRateParam = yawRate;
+	currentMaxXYVel = xyVel;
+	currentMaxZVel = zVel;
+	currentMaxYawRate = yawRate;
 	mavros_msgs::ParamSet paramSetSrv;
 }
 

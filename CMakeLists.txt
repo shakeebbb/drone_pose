@@ -144,6 +144,7 @@ include_directories(
  add_executable(vision_node src/vision_node.cpp)
  add_executable(tf2pose src/tf2pose.cpp)
  add_executable(sample_traj_node src/sample_traj_node.cpp)
+ add_executable(path2traj_node src/path2traj_node.cpp)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -155,6 +156,7 @@ include_directories(
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(drone_pose_node drone_pose_generate_messages_cpp)
 add_dependencies(sample_traj_node drone_pose_generate_messages_cpp)
+add_dependencies(path2traj_node drone_pose_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
  target_link_libraries(drone_pose_node ${catkin_LIBRARIES} )
@@ -162,6 +164,7 @@ add_dependencies(sample_traj_node drone_pose_generate_messages_cpp)
  target_link_libraries(vision_node ${catkin_LIBRARIES} )
  target_link_libraries(tf2pose ${catkin_LIBRARIES} )
  target_link_libraries(sample_traj_node ${catkin_LIBRARIES} )
+ target_link_libraries(path2traj_node ${catkin_LIBRARIES} )
 #############
 ## Install ##
 #############
