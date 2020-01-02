@@ -127,7 +127,7 @@ public:
 	void wait_for_params(ros::NodeHandle*);
 	void init();
 	bool isBounded(geometry_msgs::PoseStamped&);
-	void set_setpoint_from_raw(float, float, float, float, float, float);
+	geometry_msgs::Pose get_pose_from_raw(float, float, float, float, float, float);
 	void increment_setpoint(float, float, float, float, float, float, bool);
 	float pose_distance(geometry_msgs::Pose, geometry_msgs::Pose);
 	geometry_msgs::PoseStamped get_current_setpoint();
@@ -140,9 +140,10 @@ public:
 	void set_max_vel_params(float, float, float);
 	void get_max_vel_params(float&, float&, float&);
 	float get_vector_magnitude(tf2::Vector3&);
-	tf2::Vector3 transform_world_to_body(geometry_msgs::Pose, geometry_msgs::Pose, bool);
+	geometry_msgs::Pose transform_world_to_body(geometry_msgs::Pose, geometry_msgs::Pose, bool);
 	tf2::Vector3 transform_world_to_body(tf2::Vector3, geometry_msgs::Pose, bool);
 	bool isPfActive();
+	void vec_to_vel(tf2::Vector3, float&, float&, float&, float&);
 };
 
 
@@ -538,10 +539,13 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 	//																			 << currentSetpoint.pose.position.y << ", "
 	//																			 << currentSetpoint.pose.position.z << ")" << endl;	
 	
-	if(usePf && isPfActive())
+	if(usePf)
 	{
 		// Assuming only position is transformed
-		tf2::Vector3 carrotVec = transform_world_to_body(currentSetpoint.pose, currentPose.pose, true);
+		tf2::Vector3 carrotVec = transform_world_to_body(tf2::Vector3(currentSetpoint.pose.position.x,
+																																	currentSetpoint.pose.position.y,
+																																	currentSetpoint.pose.position.z),
+																																	currentPose.pose, true);
 		tf2::Vector3 pfVec(currentPotentialField.twist.linear.x, 
 											 currentPotentialField.twist.linear.y, 
 											 currentPotentialField.twist.linear.z);
@@ -553,18 +557,19 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 												pfMag*pfVec.y() + (1 - pfMag)*carrotVec.y(),
 												pfMag*pfVec.z() + (1 - pfMag)*carrotVec.z());
 		
-		float resMag = get_vector_magnitude(resVec);
-		
-		// Assuming only position is transformed
-		resVec = transform_world_to_body(resVec, currentPose.pose, false);
+		float vx, vy, vz, vyaw;
+		vec_to_vel(resVec, vx, vy, vz, vyaw);
 		
 		geometry_msgs::PoseStamped localSetpoint;
 		
-		localSetpoint.pose.position.x = resVec.x();
-		localSetpoint.pose.position.y = resVec.y();
-		localSetpoint.pose.position.z = resVec.z();
-		
-		localSetpoint.pose.orientation = currentSetpoint.pose.orientation;
+		localSetpoint.pose = get_pose_from_raw(vx*currentSamplingTime,
+																					 vy*currentSamplingTime,
+																					 vz*currentSamplingTime,
+																					 0,
+																					 0,
+																					 vyaw*currentSamplingTime);
+																					 
+		localSetpoint.pose = transform_world_to_body(localSetpoint.pose, currentPose.pose, false);
 		
 		localSetpoint.header.stamp = ros::Time::now();
 	
@@ -572,8 +577,6 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 		localSetpoint.header.frame_id = currentPose.header.frame_id;
 		else
 		localSetpoint.header.frame_id = currentSetpoint.header.frame_id;
-		
-		set_max_vel_params(resMag*maxXYVelParam, resMag*maxZVelParam, maxYawRateParam);
 		
 		isBounded(localSetpoint);
 		
@@ -593,6 +596,18 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 	
 	setpointPub.publish(currentSetpoint);
 	}
+}
+
+// ***********************************************************************
+void drone_pose_class::vec_to_vel(tf2::Vector3 inputVector, float& vx, float& vy, float& vz, float& vyaw)
+{
+	float pi = 3.14159265358979323846;
+	
+	vx = inputVector.x()*maxXYVelParam;
+	vy = 0;
+	vz = inputVector.z()*maxZVelParam;
+	
+	vyaw = atan2(inputVector.y(), inputVector.x()) / pi * maxYawRateParam;
 }
 
 // ***********************************************************************
@@ -620,7 +635,7 @@ float drone_pose_class::get_vector_magnitude(tf2::Vector3& inputVector)
 }
 
 // ***********************************************************************
-tf2::Vector3 drone_pose_class::transform_world_to_body(geometry_msgs::Pose pose, geometry_msgs::Pose robotPose, bool transformDirection)
+geometry_msgs::Pose drone_pose_class::transform_world_to_body(geometry_msgs::Pose inputPose, geometry_msgs::Pose robotPose, bool transformDirection)
 {
 	tf2::Transform localTransform;
 	
@@ -637,14 +652,50 @@ tf2::Vector3 drone_pose_class::transform_world_to_body(geometry_msgs::Pose pose,
 	
 	localTransform.setRotation(bodyRotation);
 	
+	tf2::Vector3 position;
+	tf2::Quaternion orientation;
+	geometry_msgs::Pose outputPose;
+	
 	if(transformDirection)
-	return localTransform.inverse()*tf2::Vector3(pose.position.x,
-																					 		 pose.position.y,
-																							 pose.position.z);
+	{
+		position = localTransform.inverse()*tf2::Vector3(inputPose.position.x,
+																						 				 inputPose.position.y,
+																								 		 inputPose.position.z);
+		orientation = localTransform.inverse()*tf2::Quaternion(inputPose.orientation.x, 
+																													 inputPose.orientation.y, 
+																													 inputPose.orientation.z, 
+																													 inputPose.orientation.w);
+	  outputPose.position.x = position.x();
+	  outputPose.position.y = position.y();
+	  outputPose.position.z = position.z();
+	  
+	  outputPose.orientation.x = orientation.x();
+	  outputPose.orientation.y = orientation.y();
+	  outputPose.orientation.z = orientation.z();
+	  outputPose.orientation.w = orientation.w();
+	  
+	  return outputPose;																						 
+	}
 	else
-	return localTransform*tf2::Vector3(pose.position.x,
-																		 pose.position.y,
-																		 pose.position.z);
+	{
+		position = localTransform*tf2::Vector3(inputPose.position.x,
+																			 		 inputPose.position.y,
+																			 		 inputPose.position.z);
+		orientation = localTransform*tf2::Quaternion(inputPose.orientation.x, 
+																								 inputPose.orientation.y, 
+																								 inputPose.orientation.z, 
+																								 inputPose.orientation.w);
+		outputPose.position.x = position.x();
+	  outputPose.position.y = position.y();
+	  outputPose.position.z = position.z();
+	  
+	  outputPose.orientation.x = orientation.x();
+	  outputPose.orientation.y = orientation.y();
+	  outputPose.orientation.z = orientation.z();
+	  outputPose.orientation.w = orientation.w();
+	  
+	  return outputPose;
+	}
 }
 
 // ***********************************************************************
@@ -696,21 +747,23 @@ void drone_pose_class::start_traj_timer(float samplingTime)
 }
 
 // ***********************************************************************
-void drone_pose_class::set_setpoint_from_raw(float x, float y, float z, float roll, float pitch, float yaw)
+geometry_msgs::Pose drone_pose_class::get_pose_from_raw(float x, float y, float z, float roll, float pitch, float yaw)
 {
-	currentSetpoint.header.stamp = ros::Time::now();
+	geometry_msgs::Pose outputPose;
 	
-	currentSetpoint.pose.position.x = x;
-	currentSetpoint.pose.position.y = y;
-	currentSetpoint.pose.position.z = z;
+	outputPose.position.x = x;
+	outputPose.position.y = y;
+	outputPose.position.z = z;
 	
 	tf::Quaternion quadOrientation;
 	quadOrientation.setRPY(roll, pitch, yaw);
 	
-	currentSetpoint.pose.orientation.x = quadOrientation.x();
-	currentSetpoint.pose.orientation.y = quadOrientation.y();
-	currentSetpoint.pose.orientation.z = quadOrientation.z();
-	currentSetpoint.pose.orientation.w = quadOrientation.w();
+	outputPose.orientation.x = quadOrientation.x();
+	outputPose.orientation.y = quadOrientation.y();
+	outputPose.orientation.z = quadOrientation.z();
+	outputPose.orientation.w = quadOrientation.w();
+	
+	return outputPose;
 }
 
 // *************************************************************************
