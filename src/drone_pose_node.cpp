@@ -129,7 +129,7 @@ public:
 	bool isBounded(geometry_msgs::PoseStamped&);
 	geometry_msgs::Pose get_pose_from_raw(float, float, float, float, float, float);
 	void increment_setpoint(float, float, float, float, float, float, bool);
-	float pose_distance(geometry_msgs::Pose, geometry_msgs::Pose);
+	float pose_distance(geometry_msgs::Pose, geometry_msgs::Pose, string = "all");
 	geometry_msgs::PoseStamped get_current_setpoint();
 	float get_current_sampling_time();
 	char get_current_flight_mode();
@@ -269,7 +269,7 @@ void drone_pose_class::traj_timer_cb(const ros::TimerEvent&)
 	
 	if(currentFlightMode == 'H')
 	{
-	publish_current_setpoint(false);	
+	publish_current_setpoint(true);	
 	return;
 	}
 	
@@ -539,16 +539,35 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 	//																			 << currentSetpoint.pose.position.y << ", "
 	//																			 << currentSetpoint.pose.position.z << ")" << endl;	
 	
-	if(usePf)
+	static geometry_msgs::Pose previousSetpoint;
+	
+	if(!usePf || (!isPfActive() && pose_distance(currentSetpoint.pose, currentPose.pose) < successRadiusParam))
+	{
+		isBounded(currentSetpoint);
+		
+		currentSetpoint.header.stamp = ros::Time::now();
+		
+		if(!currentPose.header.frame_id.empty())
+		currentSetpoint.header.frame_id = currentPose.header.frame_id;					 
+		
+		setpointPub.publish(currentSetpoint);
+	}
+	
+	else
 	{
 		// Assuming only position is transformed
 		tf2::Vector3 carrotVec = transform_world_to_body(tf2::Vector3(currentSetpoint.pose.position.x,
 																																	currentSetpoint.pose.position.y,
 																																	currentSetpoint.pose.position.z),
 																																	currentPose.pose, true);
+																																	
+		cout << "carrotVec: (" << carrotVec.x() << ", " << carrotVec.y() << ", "<< carrotVec.z() << ")" << endl;
+		
 		tf2::Vector3 pfVec(currentPotentialField.twist.linear.x, 
 											 currentPotentialField.twist.linear.y, 
 											 currentPotentialField.twist.linear.z);
+											 
+		cout << "pfVec: (" << pfVec.x() << ", " << pfVec.y() << ", "<< pfVec.z() << ")" << endl;
 		
 		float carrotMag = get_vector_magnitude(carrotVec);
 		float pfMag = get_vector_magnitude(pfVec);
@@ -556,18 +575,34 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 		tf2::Vector3 resVec(pfMag*pfVec.x() + (1 - pfMag)*carrotVec.x(),
 												pfMag*pfVec.y() + (1 - pfMag)*carrotVec.y(),
 												pfMag*pfVec.z() + (1 - pfMag)*carrotVec.z());
+												
+		cout << "resVec: (" << resVec.x() << ", " << resVec.y() << ", "<< resVec.z() << ")" << endl;
 		
 		float vx, vy, vz, vyaw;
 		vec_to_vel(resVec, vx, vy, vz, vyaw);
 		
+		cout << "resVel: (" << vx << ", " << vy << ", "<< vz << ", " << vyaw << ")" << endl;
+		
 		geometry_msgs::PoseStamped localSetpoint;
 		
-		localSetpoint.pose = get_pose_from_raw(vx*currentSamplingTime,
-																					 vy*currentSamplingTime,
-																					 vz*currentSamplingTime,
-																					 0,
-																					 0,
-																					 vyaw*currentSamplingTime);
+		if(!isPfActive() && pose_distance(currentSetpoint.pose, currentPose.pose, "heading") > successRadiusParam)
+		{	
+			localSetpoint.pose = get_pose_from_raw(0,
+																						 0,
+																						 0,
+																						 0,
+																						 0,
+																						 vyaw*currentSamplingTime);
+		}
+		else
+		{
+			localSetpoint.pose = get_pose_from_raw(vx*currentSamplingTime,
+																						 vy*currentSamplingTime,
+																						 vz*currentSamplingTime,
+																						 0,
+																						 0,
+																						 vyaw*currentSamplingTime);
+		}
 																					 
 		localSetpoint.pose = transform_world_to_body(localSetpoint.pose, currentPose.pose, false);
 		
@@ -582,20 +617,7 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 		
 		setpointPub.publish(localSetpoint);
 	}
-	
-	else
-	{
-	isBounded(currentSetpoint);
-	
-	set_max_vel_params(maxXYVelParam, maxZVelParam, maxYawRateParam);
-	
-	currentSetpoint.header.stamp = ros::Time::now();
-	
-	if(!currentPose.header.frame_id.empty())
-	currentSetpoint.header.frame_id = currentPose.header.frame_id;					 
-	
-	setpointPub.publish(currentSetpoint);
-	}
+
 }
 
 // ***********************************************************************
@@ -626,11 +648,14 @@ float drone_pose_class::get_vector_magnitude(tf2::Vector3& inputVector)
 {
 	float mag = sqrt(pow(inputVector.x(), 2) + pow(inputVector.y(), 2) + pow(inputVector.z(), 2));
 	
-	tf2::Vector3 outputVector(inputVector.x()/mag,
-														inputVector.y()/mag,
-														inputVector.z()/mag);
-	
-	inputVector = outputVector;
+	if(mag != 0)
+	{
+		tf2::Vector3 outputVector(inputVector.x()/mag,
+															inputVector.y()/mag,
+															inputVector.z()/mag);
+		
+		inputVector = outputVector;
+	}
 	return mag;
 }
 
@@ -767,7 +792,7 @@ geometry_msgs::Pose drone_pose_class::get_pose_from_raw(float x, float y, float 
 }
 
 // *************************************************************************
-float drone_pose_class::pose_distance(geometry_msgs::Pose pose1, geometry_msgs::Pose pose2)
+float drone_pose_class::pose_distance(geometry_msgs::Pose pose1, geometry_msgs::Pose pose2, string field)
 {
 	float x_err = pose1.position.x - pose2.position.x;
 	float y_err = pose1.position.y - pose2.position.y;
@@ -790,6 +815,9 @@ float drone_pose_class::pose_distance(geometry_msgs::Pose pose1, geometry_msgs::
 	tf::Matrix3x3(quadOrientation2).getRPY(currentRoll2, currentPitch2, currentYaw2);
 	
 	float yaw_err = currentYaw1 - currentYaw2;
+	
+	if (field == "heading")
+	return abs(yaw_err);
 	
 	return sqrt(pow(x_err,2) + pow(y_err,2) + pow(z_err,2) + pow(yaw_err,2));
 }
@@ -853,10 +881,10 @@ int main(int argc, char **argv)
 				dronePose.publish_current_setpoint(false);
 				break;
 			case 'H' : // Hold Mode
-				//dronePose.start_traj_timer(dronePose.get_current_sampling_time());
-				dronePose.stop_traj_timer();
+				dronePose.start_traj_timer(dronePose.get_current_sampling_time());
+				//dronePose.stop_traj_timer();
 				dronePose.update_pf_from_joy();
-				dronePose.publish_current_setpoint(true);
+				//dronePose.publish_current_setpoint(true);
 				break;
 			case 'T' : // Trajectory Mode				
 				dronePose.start_traj_timer(dronePose.get_current_sampling_time());
