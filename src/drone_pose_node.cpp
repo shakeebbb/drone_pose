@@ -565,7 +565,7 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 		return;
 	}
 	
-	if(!usePf || (!isPfActive() && pose_distance(currentSetpoint.pose, lastCommandedSetpoint.pose, "position") < successRadiusParam))
+	if(!usePf)
 	{
 		isBounded(currentSetpoint);
 		
@@ -578,6 +578,12 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 		lastCommandedSetpoint = currentSetpoint;
 		
 		//cout << "PF is diabled or local setpoint reached" << endl;
+	}
+	
+	else if(!isPfActive() && pose_distance(currentSetpoint.pose, lastCommandedSetpoint.pose, "position") < successRadiusParam)
+	{
+		lastCommandedSetpoint.header.stamp = ros::Time::now();
+		setpointPub.publish(lastCommandedSetpoint);
 	}
 	
 	else
