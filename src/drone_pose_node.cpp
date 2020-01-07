@@ -206,7 +206,22 @@ void drone_pose_class::joy_cb(const sensor_msgs::Joy& msg)
 
 		currentSetpoint.header.stamp = ros::Time::now();
 		
-		currentSetpoint.pose = currentPose.pose;		
+		//currentSetpoint.pose = currentPose.pose;
+		
+		tf::Quaternion quadOrientation(currentPose.pose.orientation.x,
+  															 	 currentPose.pose.orientation.y,
+  															 	 currentPose.pose.orientation.z,
+  															 	 currentPose.pose.orientation.w);
+  															 
+  	double localRoll, localPitch, localYaw;
+		tf::Matrix3x3(quadOrientation).getRPY(localRoll, localPitch, localYaw);
+			
+		currentSetpoint.pose = get_pose_from_raw(currentPose.pose.position.x, 
+																						 currentPose.pose.position.y, 
+																						 currentPose.pose.position.z, 
+																						 0,
+																						 0,
+																						 localYaw);
 		
 		ROS_WARN("Flight Mode set to '%c'", currentFlightMode);
 		ROS_INFO("Setpoint set to current pose");
