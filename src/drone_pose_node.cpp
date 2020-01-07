@@ -630,7 +630,6 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 		}
 		else
 		*/
-		{
 			localSetpoint.pose = get_pose_from_raw(vx*currentSamplingTime,
 																						 vy*currentSamplingTime,
 																						 vz*currentSamplingTime,
@@ -638,7 +637,6 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 																						 0,
 																						 vyaw*currentSamplingTime);																					 
 			cout << "Correcting heading and translating" << endl;
-		}
 																					 
 		localSetpoint.pose = transform_world_to_body(localSetpoint.pose, lastCommandedSetpoint.pose, false);
 		cout << "Current Robot Position: (" << currentPose.pose.position.x << ", " << currentPose.pose.position.y << ", "
@@ -866,6 +864,12 @@ float drone_pose_class::pose_distance(geometry_msgs::Pose pose1, geometry_msgs::
 	
 	if (field == "position")
 	return sqrt(pow(x_err,2) + pow(y_err,2) + pow(z_err,2));
+	
+	if (field == "planar")
+	return sqrt(pow(x_err,2) + pow(y_err,2));
+	
+	if (field == "height")
+	return abs(z_err);
 	
 	return sqrt(pow(x_err,2) + pow(y_err,2) + pow(z_err,2) + pow(yaw_err,2));
 }

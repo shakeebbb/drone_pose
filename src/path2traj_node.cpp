@@ -15,6 +15,7 @@ float pose_distance(geometry_msgs::Pose, geometry_msgs::Pose, string = "all");
 
 drone_pose::trajectoryMsg trajMsg;
 ros::Publisher trajPub;
+ros::Publisher localGoalPub;
 
 int main(int argc, char **argv)
 {
@@ -24,6 +25,8 @@ int main(int argc, char **argv)
 	while(!nh.getParam("path2traj_node/carrot_distance", carrotDistance));
 	
 	trajPub = nh.advertise<drone_pose::trajectoryMsg>("trajectory", 10);
+	localGoalPub = nh.advertise<geometry_msgs::Pose>("generated_local_goal", 10);
+	
 	ros::Subscriber pathSub = nh.subscribe<nav_msgs::Path>("path", 10, path_cb);
 	ros::ServiceClient flightModeClient = nh.serviceClient<drone_pose::flightModeSrv>("flight_mode");
 	
@@ -62,7 +65,7 @@ void path_cb(const nav_msgs::Path::ConstPtr& msg)
 	}
 	
 	trajMsg.poses.push_back(msg->poses[itr].pose);
-	
+	localGoalPub.publish(msg->poses[itr].pose);
 	trajPub.publish(trajMsg);
 }	
 
