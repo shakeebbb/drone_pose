@@ -46,15 +46,21 @@
 			<param name="successRadius" type="double" value="0.35"/>
 			
 		</node>
+		
+		<node name="path2traj_node" pkg="drone_pose" type="path2traj_node" output="screen">
+			<param name="carrot_distance" value="1.5"/>
+			<remap from="path" to="path"/>
+			<remap from="trajectory" to="trajectory"/>
+		</node>
 	
-		<include file="$(find mavros)/launch/px4.launch">
-		 <arg name="fcu_url" value="udp://:14540@10.0.0.13:14557"/>
+		<!--include file="$(find mavros)/launch/px4.launch">
+		 <arg name="fcu_url" value="/dev/fcu"/>
 		</include>
 
 		<param name="mavros/vision_pose/tf/listen" type="bool" value="true"/>
                 <param name="mavros/vision_pose/tf/frame_id" type="string" value="odom"/>
                 <param name="mavros/vision_pose/tf/child_frame_id" type="string" value="base_link"/>
-                <param name="mavros/vision_pose/tf/rate_limit" type="double" value="50"/>
+                <param name="mavros/vision_pose/tf/rate_limit" type="double" value="50"/-->
 
 		<!--param name="mavros/distance_sensor/sonar_1_sub/id" type="int" value="2"/>
 		<param name="mavros/distance_sensor/sonar_1_sub/subscriber" type="bool" value="true"/-->
