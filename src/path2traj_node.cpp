@@ -55,6 +55,7 @@ void path_cb(const nav_msgs::Path::ConstPtr& msg)
 	
 	float pathDistance = 0;
 	
+	cout << "Path Received: " << msg->poses.size() << endl;
 	int itr;
 	for(itr = 0; itr < (msg->poses.size()-1); itr++)
 	{
