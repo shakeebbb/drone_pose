@@ -166,7 +166,7 @@ add_dependencies(drone_pose drone_pose_generate_messages_cpp)
  target_link_libraries(vision_node ${catkin_LIBRARIES} )
  target_link_libraries(tf2pose ${catkin_LIBRARIES} )
  target_link_libraries(sample_traj_node ${catkin_LIBRARIES} )
- target_link_libraries(path2traj_node ${catkin_LIBRARIES} )
+ target_link_libraries(path2traj_node ${catkin_LIBRARIES} drone_pose)
 #############
 ## Install ##
 #############

@@ -22,6 +22,7 @@
 #include <mavros_msgs/ParamSet.h>
 #include <mavros_msgs/ParamGet.h>
 #include <tf2/LinearMath/Transform.h>
+#include <tf2_ros/transform_listener.h>
 
 class drone_pose_class
 {
@@ -46,6 +47,10 @@ private:
 	ros::ServiceClient setModeClient;
 	ros::ServiceClient setParamClient;
 	ros::ServiceClient getParamClient;
+	
+	// TF Buffer
+  tf2_ros::Buffer tfBuffer;
+  tf2_ros::TransformListener* tfListenerPtr;
 	
 	// Timers
 	ros::Timer trajTimer;
@@ -88,8 +93,9 @@ private:
 	
 public:
 
-	// Constructor
+	// Constructor/Destructor
 	drone_pose_class(ros::NodeHandle*);
+	~drone_pose_class();
 	
 	// Callbacks
 	void state_mavros_cb(const mavros_msgs::State&);
@@ -106,7 +112,7 @@ public:
 	bool isBounded(geometry_msgs::PoseStamped&);
 	geometry_msgs::Pose get_pose_from_raw(float, float, float, float, float, float);
 	void increment_setpoint(float, float, float, float, float, float, bool);
-	float pose_distance(geometry_msgs::Pose, geometry_msgs::Pose, std::string = "all");
+	static float pose_distance(geometry_msgs::Pose, geometry_msgs::Pose, std::string = "all");
 	geometry_msgs::PoseStamped get_current_setpoint();
 	float get_current_sampling_time();
 	char get_current_flight_mode();

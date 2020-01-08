@@ -1,7 +1,7 @@
 #include "drone_pose.h"
 
 drone_pose_class::drone_pose_class(ros::NodeHandle *nh)
-{
+{	
 	wait_for_params(nh);
 		
 	// Subscribers
@@ -23,11 +23,21 @@ drone_pose_class::drone_pose_class(ros::NodeHandle *nh)
 	getParamClient = nh->serviceClient<mavros_msgs::ParamGet>("mavros/param/get");
 	setParamClient = nh->serviceClient<mavros_msgs::ParamSet>("mavros/param/set");
 		
-	//Timers
+	// Timers
 	trajTimer = nh->createTimer(ros::Duration(0.2), &drone_pose_class::traj_timer_cb, this);
 	trajTimer.stop();
+	
+	// Transforms
+	tfListenerPtr = new tf2_ros::TransformListener(tfBuffer);
 		
+	// Initialize Flight Variables	
 	init();
+}
+
+// ***********************************************************************
+drone_pose_class::~drone_pose_class()
+{
+	delete tfListenerPtr;
 }
 	
 // ***********************************************************************
