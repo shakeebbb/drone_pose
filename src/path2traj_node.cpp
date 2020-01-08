@@ -1,28 +1,31 @@
 
-#include "ros/ros.h"
-#include "drone_pose/trajectoryMsg.h"
-#include "drone_pose/flightModeSrv.h"
+#include "drone_pose.h"
 #include "nav_msgs/Path.h"
-#include "tf2/LinearMath/Transform.h"
-#include "tf/transform_datatypes.h"
 
 using namespace std;
 	
-float carrotDistance;
-
-void path_cb(const nav_msgs::Path::ConstPtr&);
-float pose_distance(geometry_msgs::Pose, geometry_msgs::Pose, string = "all");
+// Global Variables
+float carrotDistance = 1.5;
 
 drone_pose::trajectoryMsg trajMsg;
 ros::Publisher trajPub;
 ros::Publisher localGoalPub;
 
+// Function Declarations
+void path_cb(const nav_msgs::Path::ConstPtr&);
+float pose_distance(geometry_msgs::Pose, geometry_msgs::Pose, string = "all");
+
+// Main
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "path2traj_node");
 	ros::NodeHandle nh;
 	
-	while(!nh.getParam("path2traj_node/carrot_distance", carrotDistance));
+	while(!nh.getParam("path2traj_node/carrot_distance", carrotDistance))
+	{
+		ROS_WARN("Waiting for carrot_distance parameter");
+		sleep(1);
+	}
 	
 	trajPub = nh.advertise<drone_pose::trajectoryMsg>("trajectory", 10);
 	localGoalPub = nh.advertise<geometry_msgs::Pose>("generated_local_goal", 10);

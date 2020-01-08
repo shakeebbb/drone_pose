@@ -45,6 +45,8 @@
 			
 			<param name="successRadius" type="double" value="0.35"/>
 			
+			<param name="frame_id" type="string" value="odom"/>
+			
 		</node>
 		
 		<node name="path2traj_node" pkg="drone_pose" type="path2traj_node" output="screen">

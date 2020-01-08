@@ -109,8 +109,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES asap_pkg
+  INCLUDE_DIRS include
+  LIBRARIES drone_pose
   #CATKIN_DEPENDS geometry_msgs mavros_msgs nav_msgs roscpp rospy std_msgs message_runtime
 #  DEPENDS system_lib
 )
@@ -122,14 +122,14 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+  include
   ${catkin_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
-# add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/asap_pkg.cpp
-# )
+ add_library(drone_pose
+   src/drone_pose.cpp
+ )
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -157,9 +157,11 @@ include_directories(
 add_dependencies(drone_pose_node drone_pose_generate_messages_cpp)
 add_dependencies(sample_traj_node drone_pose_generate_messages_cpp)
 add_dependencies(path2traj_node drone_pose_generate_messages_cpp)
+add_dependencies(drone_pose drone_pose_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
- target_link_libraries(drone_pose_node ${catkin_LIBRARIES} )
+ target_link_libraries(drone_pose ${catkin_LIBRARIES} )
+ target_link_libraries(drone_pose_node ${catkin_LIBRARIES} drone_pose)
  target_link_libraries(vicon_node ${catkin_LIBRARIES} )
  target_link_libraries(vision_node ${catkin_LIBRARIES} )
  target_link_libraries(tf2pose ${catkin_LIBRARIES} )
@@ -187,7 +189,7 @@ add_dependencies(path2traj_node drone_pose_generate_messages_cpp)
 # )
 
 ## Mark cpp header files for installation
-# install(DIRECTORY include/${PROJECT_NAME}/
+# install(DIRECTORY include/
 #   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 #   FILES_MATCHING PATTERN "*.h"
 #   PATTERN ".svn" EXCLUDE
