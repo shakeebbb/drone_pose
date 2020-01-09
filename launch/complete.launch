@@ -26,7 +26,7 @@
 			<remap from="pose_topic" to="mavros/local_position/pose"/>
 			<remap from="setpoint_topic" to="mavros/setpoint_position/local"/>
 			<remap from="flight_mode_service" to="flight_mode"/>
-			<remap from="trajectory_topic" to="trajectory"/>
+			<remap from="trajectory_topic" to="drone_pose_traj"/>
 
 			<param name="arm_button" type="int" value="2"/>
 			<param name="disarm_button" type="int" value="3"/>
@@ -51,8 +51,9 @@
 		
 		<node name="path2traj_node" pkg="drone_pose" type="path2traj_node" output="screen">
 			<param name="carrot_distance" value="1.5"/>
-			<remap from="path" to="path"/>
-			<remap from="trajectory" to="trajectory"/>
+			<remap from="path" to="drone_pose_path"/>
+			<remap from="traj" to="drone_pose_traj"/>
+			<remap from="local_goal" to="drone_pose_carrot">
 		</node>
 	
 		<!--include file="$(find mavros)/launch/px4.launch">
