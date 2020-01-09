@@ -489,9 +489,16 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 																																	
 		std::cout << "carrotVec: (" << carrotVec.x() << ", " << carrotVec.y() << ", "<< carrotVec.z() << ")" << std::endl;
 		
-		tf2::Vector3 pfVec(currentPotentialField.twist.linear.x, 
-											 currentPotentialField.twist.linear.y, 
-											 currentPotentialField.twist.linear.z);
+		double localRoll, localPitch, localYaw;
+		quat_to_rpy(currentPose.pose.orientation.x, currentPose.pose.orientation.y, currentPose.pose.orientation.z, currentPose.pose.orientation.w,
+						 		localRoll, localPitch, localYaw);
+		
+		geometry_msgs::Pose inclination = get_pose_from_raw(0, 0, 0, localRoll, localPitch, 0);
+											 
+		tf2::Vector3 pfVec = transform_world_to_body(tf2::Vector3(currentPotentialField.twist.linear.x,
+																								 							currentPotentialField.twist.linear.y,
+																								 							currentPotentialField.twist.linear.z),
+																								 							inclination, false);
 											 
 		std::cout << "pfVec: (" << pfVec.x() << ", " << pfVec.y() << ", "<< pfVec.z() << ")" << std::endl;
 		
