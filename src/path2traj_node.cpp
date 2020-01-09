@@ -8,12 +8,12 @@ using namespace std;
 // Global Variables
 float carrotDistance = 1.5;
 
-drone_pose::trajectoryMsg trajMsg;
 ros::Publisher trajPub;
-ros::Publisher localGoalPub;
+ros::ServiceClient flightModeClient;
 
 // Function Declarations
 void path_cb(const nav_msgs::Path::ConstPtr&);
+void localGoal_cb(const geometry_msgs::PoseStamped&);
 
 // Main
 int main(int argc, char **argv)
@@ -28,30 +28,48 @@ int main(int argc, char **argv)
 	}
 	
 	trajPub = nh.advertise<drone_pose::trajectoryMsg>("traj", 10);
-	localGoalPub = nh.advertise<geometry_msgs::Pose>("generated_local_goal", 10);
 	
-	ros::Subscriber pathSub = nh.subscribe<nav_msgs::Path>("path", 10, path_cb);
-	ros::ServiceClient flightModeClient = nh.serviceClient<drone_pose::flightModeSrv>("flight_mode");
-	
-	drone_pose::flightModeSrv flightModeSrv;
-	flightModeSrv.request.setGet = 0;
-	flightModeSrv.request.flightMode = 'W';
-	
-	while(flightModeSrv.response.flightMode != 'W')
-	{
-		flightModeClient.call(flightModeSrv);
-		ROS_WARN("path2traj_node: Could not change flight mode. Trying again ...");
-		sleep(1.5);
-	}
-	
-	ROS_INFO("path2traj_node: Change of flight mode successful");
+	ros::Subscriber pathSub = nh.subscribe("path", 10, path_cb);
+	ros::Subscriber localGoalSub = nh.subscribe("local_goal", 10, localGoal_cb);
+	flightModeClient = nh.serviceClient<drone_pose::flightModeSrv>("flight_mode");
 	
 	ros::spin();
 	return 0;
 }
+
+// ************************************************************
+void localGoal_cb(const geometry_msgs::PoseStamped& msg)
+{
+	drone_pose::flightModeSrv flightModeSrv;
+	flightModeSrv.request.setGet = 0;
+	flightModeSrv.request.flightMode = 'W';
 	
+	flightModeClient.call(flightModeSrv);
+		
+	if(flightModeSrv.response.flightMode != 'W')
+	{		
+		ROS_WARN_THROTTLE(1, "path2traj_node: Could not change flight mode. Trying again ...");
+		return;
+	}
+	
+	drone_pose::trajectoryMsg trajMsg;
+	
+	trajMsg.poses.clear();
+	trajMsg.appendRefresh = true;
+	trajMsg.samplingTime = 0.1;
+	trajMsg.header.stamp = ros::Time::now();
+	trajMsg.header.frame_id = msg.header.frame_id;
+	
+	trajMsg.poses.push_back(msg.pose);
+	
+	trajPub.publish(trajMsg);
+}
+	
+// ************************************************************
 void path_cb(const nav_msgs::Path::ConstPtr& msg)
 {
+	drone_pose::trajectoryMsg trajMsg;
+	
 	trajMsg.poses.clear();
 	trajMsg.appendRefresh = true;
 	trajMsg.samplingTime = 0.1;
@@ -69,7 +87,6 @@ void path_cb(const nav_msgs::Path::ConstPtr& msg)
 	}
 	
 	trajMsg.poses.push_back(msg->poses[itr].pose);
-	localGoalPub.publish(msg->poses[itr].pose);
 	trajPub.publish(trajMsg);
 }	
 
