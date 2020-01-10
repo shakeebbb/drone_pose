@@ -9,6 +9,7 @@ drone_pose_class::drone_pose_class(ros::NodeHandle *nh)
 	joySub = nh->subscribe("joy_topic", 100, &drone_pose_class::joy_cb, this);
 	poseSub = nh->subscribe("pose_topic", 100, &drone_pose_class::pose_cb, this);
 	trajectorySub = nh->subscribe("trajectory_topic", 10, &drone_pose_class::trajectory_cb, this);
+	pfSub = nh->subscribe("pf_topic", 10, &drone_pose_class::pf_cb, this);
 		
 	// Publishers
 	setpointPub = nh->advertise<geometry_msgs::PoseStamped>("setpoint_topic", 10);
@@ -32,6 +33,12 @@ drone_pose_class::drone_pose_class(ros::NodeHandle *nh)
 		
 	// Initialize Flight Variables	
 	init();
+}
+
+// ***********************************************************************
+void drone_pose_class::pf_cb(const geometry_msgs::TwistStamped& msg)
+{
+	currentPotentialField = msg;
 }
 
 // ***********************************************************************
