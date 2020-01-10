@@ -30,12 +30,12 @@ int main(int argc, char **argv)
 			case 'H' : // Hold Mode
 				dronePose.start_traj_timer(dronePose.get_current_sampling_time());
 
-				dronePose.increment_setpoint(0.05, 
-																		 0.05,
-																		 0.05,
+				dronePose.increment_setpoint(0.04, 
+																		 0.04,
+																		 0.04,
 																		 0,
 																		 0,
-																		 0.05,
+																		 0.04,
 																		 false);
 																		 
 				//dronePose.update_pf_from_joy();

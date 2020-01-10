@@ -494,6 +494,8 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 						 		localRoll, localPitch, localYaw);
 		
 		geometry_msgs::Pose inclination = get_pose_from_raw(0, 0, 0, localRoll, localPitch, 0);
+		
+		std::cout << "currentRoll: " << localRoll << "currentPitch: " << localPitch << std::endl;
 											 
 		tf2::Vector3 pfVec = transform_world_to_body(tf2::Vector3(currentPotentialField.twist.linear.x,
 																								 							currentPotentialField.twist.linear.y,

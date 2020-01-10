@@ -45,7 +45,7 @@
 			
 			<param name="successRadius" type="double" value="0.35"/>
 			
-			<param name="frame_id" type="string" value="odom"/>
+			<param name="frame_id" type="string" value="map"/>
 			
 		</node>
 		
@@ -53,7 +53,7 @@
 			<param name="carrot_distance" value="1.5"/>
 			<remap from="path" to="drone_pose_path"/>
 			<remap from="traj" to="drone_pose_traj"/>
-			<remap from="local_goal" to="drone_pose_carrot">
+			<remap from="local_goal" to="drone_pose_carrot"/>
 		</node>
 	
 		<!--include file="$(find mavros)/launch/px4.launch">
