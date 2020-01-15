@@ -5,15 +5,15 @@ drone_pose_class::drone_pose_class(ros::NodeHandle *nh)
 	wait_for_params(nh);
 		
 	// Subscribers
-	stateMavrosSub = nh->subscribe("mavros_state_topic", 10, &drone_pose_class::state_mavros_cb, this);
-	joySub = nh->subscribe("joy_topic", 100, &drone_pose_class::joy_cb, this);
-	poseSub = nh->subscribe("pose_topic", 100, &drone_pose_class::pose_cb, this);
-	trajectorySub = nh->subscribe("trajectory_topic", 10, &drone_pose_class::trajectory_cb, this);
-	pfSub = nh->subscribe("pf_topic", 10, &drone_pose_class::pf_cb, this);
+	stateMavrosSub = nh->subscribe("drone_pose/mavros_state_topic", 10, &drone_pose_class::state_mavros_cb, this);
+	joySub = nh->subscribe("drone_pose/joy_topic", 100, &drone_pose_class::joy_cb, this);
+	poseSub = nh->subscribe("drone_pose/pose_topic", 100, &drone_pose_class::pose_cb, this);
+	trajectorySub = nh->subscribe("drone_pose/trajectory_topic", 10, &drone_pose_class::trajectory_cb, this);
+	pfSub = nh->subscribe("drone_pose/pf_topic", 10, &drone_pose_class::pf_cb, this);
 		
 	// Publishers
-	setpointPub = nh->advertise<geometry_msgs::PoseStamped>("setpoint_topic", 10);
-	setpointGoalPub = nh->advertise<geometry_msgs::PoseStamped>("setpoint_goal_topic", 10);
+	setpointPub = nh->advertise<geometry_msgs::PoseStamped>("drone_pose/setpoint_topic", 10);
+	setpointGoalPub = nh->advertise<geometry_msgs::PoseStamped>("drone_pose/setpoint_goal_topic", 10);
 		
 	// Servers
 	flightModeServer = nh->advertiseService("flight_mode_service", &drone_pose_class::flightMode_cb, this);
@@ -179,13 +179,35 @@ void drone_pose_class::trajectory_cb(const drone_pose::trajectoryMsg& msg)
 void drone_pose_class::traj_timer_cb(const ros::TimerEvent&)
 {
 	//cout << "Traj timer callback called" <<endl;
-	if(!(currentFlightMode == 'T' || currentFlightMode == 'W' || currentFlightMode == 'H'))
+	if(!(currentFlightMode == 'T' || currentFlightMode == 'W' || currentFlightMode == 'H' || currentFlightMode == 'L'))
 	return;
 	
 	if(currentFlightMode == 'H')
 	{
-	publish_current_setpoint(true);	
-	return;
+		publish_current_setpoint(true);	
+		return;
+	}
+	
+	if(currentFlightMode == 'L')
+	{
+		if(currentExtendedStateMavros.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND)
+		{
+			mavros_msgs::CommandBool armingCommand;
+			armingCommand.request.value = false;
+			
+			if(armingClient.call(armingCommand))
+			ROS_INFO("DIS-ARMED: Service call successful");
+			else
+			ROS_WARN("Could not disarm the vehicle: Service call unsuccessful");
+		}
+		else
+		{
+			static geometry_msgs::Pose landingPose = currentPose.pose;
+			currentSetpoint.pose = landingPose;
+			increment_setpoint(0,0,-1*landSpeedParam*currentSamplingTime, 0,0,0, true);
+			landingPose = currentSetpoint.pose;
+		}
+		return;
 	}
 	
 	if(currentWaypointList.poses.empty())
@@ -261,6 +283,7 @@ void drone_pose_class::wait_for_params(ros::NodeHandle *nh)
 	while(!nh->getParam("drone_pose_node/max_xy_vel", maxXYVelParam));
 	while(!nh->getParam("drone_pose_node/max_z_vel", maxZVelParam));
 	while(!nh->getParam("drone_pose_node/max_yaw_rate", maxYawRateParam));
+	while(!nh->getParam("drone_pose_node/land_speed", landSpeedParam));
 	
 	while(!nh->getParam("drone_pose_node/frame_id", frameId));
 	
@@ -347,9 +370,9 @@ bool drone_pose_class::isBounded(geometry_msgs::PoseStamped& point)
 bool drone_pose_class::flightMode_cb(drone_pose::flightModeSrv::Request& req,	
 									 drone_pose::flightModeSrv::Response& res)
 {
-	if (req.setGet == 0 && currentFlightMode != 'J')
+	if (req.setGet == 0 && currentFlightMode != 'J' && currentFlightMode != 'L')
 	{
-		if (req.flightMode == 'H' || req.flightMode == 'W' || req.flightMode == 'T')
+		if (req.flightMode == 'H' || req.flightMode == 'W' || req.flightMode == 'T' || req.flightMode == 'L' || req.flightMode == 'J')
 		currentFlightMode = req.flightMode;
 
 		else
@@ -385,6 +408,12 @@ void drone_pose_class::state_mavros_cb(const mavros_msgs::State& msg)
 	ROS_WARN("Mavros to disconnected");
 	
 	status = currentStateMavros.connected;
+}
+
+// ***********************************************************************
+void drone_pose_class::extended_state_mavros_cb(const mavros_msgs::ExtendedState& msg)
+{
+	currentExtendedStateMavros = msg;
 }
 
 // ***********************************************************************

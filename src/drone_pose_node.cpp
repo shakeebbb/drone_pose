@@ -41,6 +41,9 @@ int main(int argc, char **argv)
 				//dronePose.update_pf_from_joy();
 
 				break;
+			case 'L' : // Land Mode
+				dronePose.start_traj_timer(dronePose.get_current_sampling_time());
+				break;
 			case 'T' : // Trajectory Mode				
 				dronePose.start_traj_timer(dronePose.get_current_sampling_time());
 				break;

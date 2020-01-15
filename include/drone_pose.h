@@ -10,6 +10,7 @@
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/State.h>
+#include <mavros_msgs/ExtendedState.h>
 #include <sensor_msgs/Joy.h>
 #include <std_msgs/Int32.h>
 #include <std_msgs/Bool.h>
@@ -35,7 +36,6 @@ private:
 	ros::Subscriber setpointSub;
 	ros::Subscriber trajectorySub;
 	ros::Subscriber pfSub;
-	
 	
 	// Publishers
 	ros::Publisher setpointPub;
@@ -70,6 +70,7 @@ private:
 	
 	// Status variables
 	mavros_msgs::State currentStateMavros;
+	mavros_msgs::ExtendedState currentExtendedStateMavros;
 	float currentJoystickVal[4]; //x,y,z,yaw
 	bool currentTrajTimerStatus;
 	geometry_msgs::TwistStamped currentPotentialField;
@@ -91,6 +92,7 @@ private:
 	float maxXYVelParam;
 	float maxZVelParam;
 	float maxYawRateParam;
+	float landSpeedParam;
 	std::string frameId;
 	
 public:
@@ -101,6 +103,7 @@ public:
 	
 	// Callbacks
 	void state_mavros_cb(const mavros_msgs::State&);
+	void extended_state_mavros_cb(const mavros_msgs::ExtendedState&);
 	void pose_cb(const geometry_msgs::PoseStamped&);
 	void traj_timer_cb(const ros::TimerEvent&);
 	void trajectory_cb(const drone_pose::trajectoryMsg&);
