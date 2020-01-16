@@ -10,6 +10,7 @@ drone_pose_class::drone_pose_class(ros::NodeHandle *nh)
 	poseSub = nh->subscribe("drone_pose/pose_topic", 100, &drone_pose_class::pose_cb, this);
 	trajectorySub = nh->subscribe("drone_pose/trajectory_topic", 10, &drone_pose_class::trajectory_cb, this);
 	pfSub = nh->subscribe("drone_pose/pf_topic", 10, &drone_pose_class::pf_cb, this);
+	estopSub = nh->subscribe("drone_pose/estop_topic", 10, &drone_pose_class::estop_cb, this);
 		
 	// Publishers
 	setpointPub = nh->advertise<geometry_msgs::PoseStamped>("drone_pose/setpoint_topic", 10);
@@ -33,6 +34,38 @@ drone_pose_class::drone_pose_class(ros::NodeHandle *nh)
 		
 	// Initialize Flight Variables	
 	init();
+}
+
+// ***********************************************************************
+void drone_pose_class::estop_cb(const std_msgs::Bool& msg)
+{
+	static bool prevStatus = false; 
+	
+	if(msg.data)
+	{
+		if(currentExtendedStateMavros.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND)
+		{
+			mavros_msgs::CommandBool armingCommand;
+			armingCommand.request.value = false;
+				
+			if(armingClient.call(armingCommand))
+			ROS_INFO("DIS-ARMED: Service call successful");
+			else
+			ROS_WARN("Could not disarm the vehicle: Service call unsuccessful");
+			
+			prevStatus = msg.data;
+			return;
+		}
+		
+		if(msg.data == true && prevStatus == false)
+		{
+			start_traj_timer(currentSamplingTime);
+			currentSetpoint = currentPose;
+			currentFlightMode = 'L';
+			prevStatus = msg.data;
+			return;
+		}
+	}
 }
 
 // ***********************************************************************
@@ -190,23 +223,8 @@ void drone_pose_class::traj_timer_cb(const ros::TimerEvent&)
 	
 	if(currentFlightMode == 'L')
 	{
-		if(currentExtendedStateMavros.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND)
-		{
-			mavros_msgs::CommandBool armingCommand;
-			armingCommand.request.value = false;
-			
-			if(armingClient.call(armingCommand))
-			ROS_INFO("DIS-ARMED: Service call successful");
-			else
-			ROS_WARN("Could not disarm the vehicle: Service call unsuccessful");
-		}
-		else
-		{
-			static geometry_msgs::Pose landingPose = currentPose.pose;
-			currentSetpoint.pose = landingPose;
-			increment_setpoint(0,0,-1*landSpeedParam*currentSamplingTime, 0,0,0, true);
-			landingPose = currentSetpoint.pose;
-		}
+		increment_setpoint(0,0,-1*landSpeedParam*currentSamplingTime, 0,0,0, true);
+		publish_current_setpoint(false);
 		return;
 	}
 	

@@ -36,6 +36,7 @@ private:
 	ros::Subscriber setpointSub;
 	ros::Subscriber trajectorySub;
 	ros::Subscriber pfSub;
+	ros::Subscriber estopSub;
 	
 	// Publishers
 	ros::Publisher setpointPub;
@@ -111,6 +112,7 @@ public:
 	bool flightMode_cb(drone_pose::flightModeSrv::Request&,
 	 						       drone_pose::flightModeSrv::Response&);
 	void pf_cb(const geometry_msgs::TwistStamped&);
+	void estop_cb(const std_msgs::Bool&);
 									 
 	// Other cpp functions
 	void wait_for_params(ros::NodeHandle*);
