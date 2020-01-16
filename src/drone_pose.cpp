@@ -11,13 +11,15 @@ drone_pose_class::drone_pose_class(ros::NodeHandle *nh)
 	trajectorySub = nh->subscribe("drone_pose/trajectory_topic", 10, &drone_pose_class::trajectory_cb, this);
 	pfSub = nh->subscribe("drone_pose/pf_topic", 10, &drone_pose_class::pf_cb, this);
 	estopSub = nh->subscribe("drone_pose/estop_topic", 10, &drone_pose_class::estop_cb, this);
+	extendedStateMavrosSub = nh->subscribe("drone_pose/mavros_extended_state_topic", 10, &drone_pose_class::extended_state_mavros_cb, this);
 		
 	// Publishers
 	setpointPub = nh->advertise<geometry_msgs::PoseStamped>("drone_pose/setpoint_topic", 10);
 	setpointGoalPub = nh->advertise<geometry_msgs::PoseStamped>("drone_pose/setpoint_goal_topic", 10);
+	flightModePub = nh->advertise<std_msgs::String>("drone_pose/flight_mode_topic", 10);
 		
 	// Servers
-	flightModeServer = nh->advertiseService("flight_mode_service", &drone_pose_class::flightMode_cb, this);
+	flightModeServer = nh->advertiseService("drone_pose/flight_mode_service", &drone_pose_class::flightMode_cb, this);
 		
 	// Clients
 	armingClient = nh->serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
@@ -66,6 +68,7 @@ void drone_pose_class::estop_cb(const std_msgs::Bool& msg)
 			return;
 		}
 	}
+	prevStatus = msg.data;
 }
 
 // ***********************************************************************
@@ -504,7 +507,11 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 	//cout << "Publishing pose setpoint : (" << currentSetpoint.pose.position.x << ", "
 	//																			 << currentSetpoint.pose.position.y << ", "
 	//																			 << currentSetpoint.pose.position.z << ")" << endl;	
-	
+
+	std_msgs::String flMode;
+	flMode.data = currentFlightMode;
+	flightModePub.publish(flMode);
+
 	static geometry_msgs::PoseStamped lastCommandedSetpoint;
 	
 	if(lastCommandedSetpoint.pose.orientation.x == 0 && lastCommandedSetpoint.pose.orientation.y == 0 &&

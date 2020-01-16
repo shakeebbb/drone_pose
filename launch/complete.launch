@@ -15,24 +15,25 @@
 
 		<node name="drone_pose_node" pkg="drone_pose" type="drone_pose_node" output="screen">
 		
-		  <rosparam param="x_bounds"> [-5, 5] </rosparam>
+		  <rosparam param="x_bounds"> [-5, 10] </rosparam>
 			<rosparam param="y_bounds"> [-5, 5] </rosparam>
-			<rosparam param="z_bounds"> [-1, 2] </rosparam>
+			<rosparam param="z_bounds"> [-1, 4] </rosparam>
 			
 			<rosparam param="takeoff_position"> [0, 0, 0.5] </rosparam>
 			
-			<remap from="mavros_state_topic" to="mavros/state"/>
-			<remap from="joy_topic" to="/joy"/>
-			<remap from="pose_topic" to="mavros/local_position/pose"/>
-			<remap from="setpoint_topic" to="mavros/setpoint_position/local"/>
-			<remap from="flight_mode_service" to="flight_mode"/>
-			<remap from="trajectory_topic" to="drone_pose_traj"/>
+			<remap from="drone_pose/mavros_state_topic" to="mavros/state"/>
+			<remap from="drone_pose/joy_topic" to="/joy"/>
+			<remap from="drone_pose/pose_topic" to="mavros/local_position/pose"/>
+			<remap from="drone_pose/setpoint_topic" to="mavros/setpoint_position/local"/>
+			<remap from="drone_pose/flight_mode_service" to="drone_pose/flight_mode_service"/>
+			<remap from="drone_pose/trajectory_topic" to="drone_pose/trajectory_topic"/>
+			<remap from="drone_pose/mavros_extended_state_topic" to="mavros/extended_state"/>
 
-			<param name="arm_button" type="int" value="2"/>
+			<param name="arm_button" type="int" value="0"/>
 			<param name="disarm_button" type="int" value="3"/>
 
-			<param name="A_button" type="int" value="0"/>
-			<param name="B_button" type="int" value="1"/>
+			<param name="A_button" type="int" value="1"/>
+			<param name="B_button" type="int" value="2"/>
 
 			<param name="x_axis" type="int" value="3"/>
       <param name="y_axis" type="int" value="2"/>
@@ -41,29 +42,29 @@
 			
 			<param name="max_xy_vel" type="double" value="0.6"/>
 			<param name="max_z_vel" type="double" value="0.6"/>
-			<param name="max_yaw_rate" type="double" value="1.57"/>
-			
+			<param name="max_yaw_rate" type="double" value="1.00"/>
+			<param name="land_speed" type="double" value="0.3"/>
 			<param name="successRadius" type="double" value="0.35"/>
 			
-			<param name="frame_id" type="string" value="map"/>
+			<param name="frame_id" type="string" value="odom"/>
 			
 		</node>
 		
-		<node name="path2traj_node" pkg="drone_pose" type="path2traj_node" output="screen">
+		<!--node name="path2traj_node" pkg="drone_pose" type="path2traj_node" output="screen">
 			<param name="carrot_distance" value="1.5"/>
 			<remap from="path" to="drone_pose_path"/>
 			<remap from="traj" to="drone_pose_traj"/>
 			<remap from="local_goal" to="drone_pose_carrot"/>
-		</node>
+		</node-->
 	
-		<!--include file="$(find mavros)/launch/px4.launch">
+		<include file="$(find mavros)/launch/px4.launch">
 		 <arg name="fcu_url" value="/dev/fcu"/>
 		</include>
 
 		<param name="mavros/vision_pose/tf/listen" type="bool" value="true"/>
                 <param name="mavros/vision_pose/tf/frame_id" type="string" value="odom"/>
                 <param name="mavros/vision_pose/tf/child_frame_id" type="string" value="base_link"/>
-                <param name="mavros/vision_pose/tf/rate_limit" type="double" value="50"/-->
+                <param name="mavros/vision_pose/tf/rate_limit" type="double" value="50"/>
 
 		<!--param name="mavros/distance_sensor/sonar_1_sub/id" type="int" value="2"/>
 		<param name="mavros/distance_sensor/sonar_1_sub/subscriber" type="bool" value="true"/-->

@@ -37,10 +37,12 @@ private:
 	ros::Subscriber trajectorySub;
 	ros::Subscriber pfSub;
 	ros::Subscriber estopSub;
+	ros::Subscriber extendedStateMavrosSub;
 	
 	// Publishers
 	ros::Publisher setpointPub;
 	ros::Publisher setpointGoalPub;
+	ros::Publisher flightModePub;
 	
 	// Servers
 	ros::ServiceServer flightModeServer;
