@@ -36,17 +36,17 @@
 
 			<param name="A_button" type="int" value="1"/>
 			<param name="B_button" type="int" value="2"/>
-			<param name="land_button" type="int" value=""/>
+			<param name="land_button" type="int" value="4"/>
 
 			<param name="x_axis" type="int" value="3"/>
-      <param name="y_axis" type="int" value="2"/>
+      			<param name="y_axis" type="int" value="2"/>
 			<param name="z_axis" type="int" value="1"/>
 			<param name="yaw_axis" type="int" value="0"/>
 			
 			<param name="max_xy_vel" type="double" value="0.6"/>
 			<param name="max_z_vel" type="double" value="0.6"/>
 			<param name="max_yaw_rate" type="double" value="1.00"/>
-			<param name="land_speed" type="double" value="0.3"/>
+			<param name="land_speed" type="double" value="0.2"/>
 			<param name="successRadius" type="double" value="0.35"/>
 			
 			<param name="frame_id" type="string" value="odom"/>
