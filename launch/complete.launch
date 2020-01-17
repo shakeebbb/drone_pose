@@ -28,12 +28,15 @@
 			<remap from="drone_pose/flight_mode_service" to="drone_pose/flight_mode_service"/>
 			<remap from="drone_pose/trajectory_topic" to="drone_pose/trajectory_topic"/>
 			<remap from="drone_pose/mavros_extended_state_topic" to="mavros/extended_state"/>
+			<remap from="drone_pose/estop_status_topic" to ="drone_pose/estop_status_topic"/>
+			<remap from="drone_pose/estop_command_topic" to="drone_pose/estop_command_topic"/>
 
 			<param name="arm_button" type="int" value="0"/>
 			<param name="disarm_button" type="int" value="3"/>
 
 			<param name="A_button" type="int" value="1"/>
 			<param name="B_button" type="int" value="2"/>
+			<param name="land_button" type="int" value=""/>
 
 			<param name="x_axis" type="int" value="3"/>
       <param name="y_axis" type="int" value="2"/>

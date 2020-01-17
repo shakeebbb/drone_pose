@@ -10,13 +10,14 @@ drone_pose_class::drone_pose_class(ros::NodeHandle *nh)
 	poseSub = nh->subscribe("drone_pose/pose_topic", 100, &drone_pose_class::pose_cb, this);
 	trajectorySub = nh->subscribe("drone_pose/trajectory_topic", 10, &drone_pose_class::trajectory_cb, this);
 	pfSub = nh->subscribe("drone_pose/pf_topic", 10, &drone_pose_class::pf_cb, this);
-	estopSub = nh->subscribe("drone_pose/estop_topic", 10, &drone_pose_class::estop_cb, this);
+	estopSub = nh->subscribe("drone_pose/estop_status_topic", 10, &drone_pose_class::estop_cb, this);
 	extendedStateMavrosSub = nh->subscribe("drone_pose/mavros_extended_state_topic", 10, &drone_pose_class::extended_state_mavros_cb, this);
 		
 	// Publishers
 	setpointPub = nh->advertise<geometry_msgs::PoseStamped>("drone_pose/setpoint_topic", 10);
 	setpointGoalPub = nh->advertise<geometry_msgs::PoseStamped>("drone_pose/setpoint_goal_topic", 10);
 	flightModePub = nh->advertise<std_msgs::String>("drone_pose/flight_mode_topic", 10);
+	estopPub = nh->advertise<std_msgs::Bool>("drone_pose/estop_command_topic", 10);
 		
 	// Servers
 	flightModeServer = nh->advertiseService("drone_pose/flight_mode_service", &drone_pose_class::flightMode_cb, this);
@@ -43,32 +44,26 @@ void drone_pose_class::estop_cb(const std_msgs::Bool& msg)
 {
 	static bool prevStatus = false; 
 	
-	if(msg.data)
+	if(msg.data == true && prevStatus == false)
 	{
-		if(currentExtendedStateMavros.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND)
-		{
-			mavros_msgs::CommandBool armingCommand;
-			armingCommand.request.value = false;
-				
-			if(armingClient.call(armingCommand))
-			ROS_INFO("DIS-ARMED: Service call successful");
-			else
-			ROS_WARN("Could not disarm the vehicle: Service call unsuccessful");
-			
-			prevStatus = msg.data;
-			return;
-		}
-		
-		if(msg.data == true && prevStatus == false)
-		{
-			start_traj_timer(currentSamplingTime);
-			currentSetpoint = currentPose;
-			currentFlightMode = 'L';
-			prevStatus = msg.data;
-			return;
-		}
+		currentFlightMode = 'L';
+		currentSetpoint = currentPose;
 	}
+	
 	prevStatus = msg.data;
+	
+	if(currentFlightMode == 'L')
+	{
+		std_msgs::Bool localStatus;
+		localStatus.data = true;
+		estopPub.publish(localStatus);
+	}
+	else
+	{
+		std_msgs::Bool localStatus;
+		localStatus.data = false;
+		estopPub.publish(localStatus);
+	}
 }
 
 // ***********************************************************************
@@ -166,6 +161,12 @@ void drone_pose_class::joy_cb(const sensor_msgs::Joy& msg)
 		currentFlightMode = 'H';
 		ROS_WARN("Flight Mode set to '%c'", currentFlightMode);
  	}
+ 	
+ 	if(msg.buttons[landButtonParam] == 1)
+ 	{
+ 		currentFlightMode = 'L';
+		currentSetpoint = currentPose;
+ 	}
 
 	if(abs(msg.axes[xAxisParam])>0.2) //X
 		currentJoystickVal[0] = msg.axes[xAxisParam];
@@ -226,8 +227,21 @@ void drone_pose_class::traj_timer_cb(const ros::TimerEvent&)
 	
 	if(currentFlightMode == 'L')
 	{
-		increment_setpoint(0,0,-1*landSpeedParam*currentSamplingTime, 0,0,0, true);
-		publish_current_setpoint(false);
+		if(currentExtendedStateMavros.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND)
+		{
+			mavros_msgs::CommandBool armingCommand;
+			armingCommand.request.value = false;
+				
+			if(armingClient.call(armingCommand))
+			ROS_INFO("DIS-ARMED: Service call successful");
+			else
+			ROS_WARN("Could not disarm the vehicle: Service call unsuccessful");
+		}
+		else
+		{
+			increment_setpoint(0,0,-1*landSpeedParam*currentSamplingTime, 0,0,0, true);
+			publish_current_setpoint(false);
+		}
 		return;
 	}
 	
@@ -293,6 +307,7 @@ void drone_pose_class::wait_for_params(ros::NodeHandle *nh)
 
 	while(!nh->getParam("drone_pose_node/A_button", aButtonParam));
 	while(!nh->getParam("drone_pose_node/B_button", bButtonParam));
+	while(!nh->getParam("drone_pose_node/land_button", landButtonParam));
 
 	while(!nh->getParam("drone_pose_node/x_axis", xAxisParam));
 	while(!nh->getParam("drone_pose_node/y_axis", yAxisParam));

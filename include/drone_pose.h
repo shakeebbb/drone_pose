@@ -43,6 +43,7 @@ private:
 	ros::Publisher setpointPub;
 	ros::Publisher setpointGoalPub;
 	ros::Publisher flightModePub;
+	ros::Publisher estopPub;
 	
 	// Servers
 	ros::ServiceServer flightModeServer;
@@ -86,6 +87,7 @@ private:
 	float successRadiusParam;
 	int armButtonParam;
 	int disarmButtonParam;
+	int landButtonParam;
 	int aButtonParam;
 	int bButtonParam;
 	int xAxisParam;
