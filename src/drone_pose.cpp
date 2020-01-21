@@ -40,6 +40,50 @@ drone_pose_class::drone_pose_class(ros::NodeHandle *nh)
 }
 
 // ***********************************************************************
+bool drone_pose_class::arm_disarm(bool field)
+{
+	mavros_msgs::CommandBool armingCommand;
+	armingCommand.request.value = field;
+	bool isSuccess = armingClient.call(armingCommand);
+	
+	if(field && isSuccess)
+	{
+		ROS_INFO("ARMED: Service call successful");
+		std_msgs::Bool localEstopStatus;
+		localEstopStatus.data = false; // Green Light
+		estopPub.publish(localEstopStatus);
+	}
+	else if(field && !isSuccess)
+		ROS_WARN("Could not arm the vehicle: Service call unsuccessful");
+	else if(!field && isSuccess)
+	{
+		ROS_INFO("DISARMED: Service call successful");
+		std_msgs::Bool localEstopStatus;
+		localEstopStatus.data = true; // Red Light
+		estopPub.publish(localEstopStatus);
+	}
+	else if(!field && !isSuccess)
+		ROS_WARN("Could not disarm the vehicle: Service call unsuccessful");
+		
+	return isSuccess;
+}
+
+// ***********************************************************************
+bool drone_pose_class::set_px4_mode(std::string field)
+{
+	mavros_msgs::SetMode setMode;
+	setMode.request.custom_mode = field;
+	bool isSuccess = setModeClient.call(setMode);
+	
+	if(isSuccess)
+		ROS_INFO("%s: Service call successfull", field.c_str());
+	else
+		ROS_INFO("%s: Service call unsuccessfull", field.c_str());
+		
+	return isSuccess;
+}
+
+// ***********************************************************************
 void drone_pose_class::estop_cb(const std_msgs::Bool& msg)
 {
 	static bool prevStatus = false; 
@@ -51,19 +95,6 @@ void drone_pose_class::estop_cb(const std_msgs::Bool& msg)
 	}
 	
 	prevStatus = msg.data;
-	
-	if(currentFlightMode == 'L')
-	{
-		std_msgs::Bool localStatus;
-		localStatus.data = true;
-		estopPub.publish(localStatus);
-	}
-	else
-	{
-		std_msgs::Bool localStatus;
-		localStatus.data = false;
-		estopPub.publish(localStatus);
-	}
 }
 
 // ***********************************************************************
@@ -86,46 +117,14 @@ void drone_pose_class::joy_cb(const sensor_msgs::Joy& msg)
 	
 	if(msg.buttons[armButtonParam] == 1) //ARM = X
 	{
-		setMode.request.custom_mode = "OFFBOARD";
-		armingCommand.request.value = true;
-
-		if(setModeClient.call(setMode))
-		ROS_INFO("OFFBOARD: Service call successful");
-		else
-		{
-		ROS_WARN("Could not set offboard mode: Service call unsuccessful");
-		return;
-		}
-		
-		if(armingClient.call(armingCommand))
-		ROS_INFO("ARMED: Service call successful");
-		else
-		{
-		ROS_WARN("Could not arm the vehicle: Service call unsuccessful");
-		return;
-		}
+		if(set_px4_mode("OFFBOARD"))
+		arm_disarm(true);
 	}
 
 	if(msg.buttons[disarmButtonParam] == 1) //DISARM = Y
 	{
-		setMode.request.custom_mode = "STABILIZED";
-		armingCommand.request.value = false;
-		
-		if(armingClient.call(armingCommand))
-		ROS_INFO("DIS-ARMED: Service call successful");
-		else
-		{
-		ROS_WARN("Could not disarm the vehicle: Service call unsuccessful");
-		return;
-		}
-		
-		if(setModeClient.call(setMode))
-		ROS_INFO("STABILIZED: Service call successful");
-		else
-		{
-		ROS_WARN("Could not set stabilized mode: Service call unsuccessful");
-		return;
-		}
+		if(arm_disarm(false))
+		set_px4_mode("STABILIZED");
 	}
 
 	if(msg.buttons[aButtonParam] == 1)
@@ -194,13 +193,37 @@ void drone_pose_class::trajectory_cb(const drone_pose::trajectoryMsg& msg)
 {	
 	if(msg.samplingTime != currentSamplingTime && msg.samplingTime > 0)
 	{
-		start_traj_timer(msg.samplingTime);
+		currentSamplingTime = msg.samplingTime;
 	}
-	else if(msg.samplingTime != currentSamplingTime && msg.samplingTime <= 0)
+	
+	if(msg.samplingTime <= 0)
 	{
 		ROS_WARN("Trajectory received with invalid sampling time %f", msg.samplingTime);
-		return;
-	} 
+	}
+	
+	geometry_msgs::TransformStamped trajTransform;
+	trajTransform.header.stamp = ros::Time::now();
+	trajTransform.transform.translation.x = 0;
+	trajTransform.transform.translation.y = 0;
+	trajTransform.transform.translation.z = 0;
+	trajTransform.transform.rotation.x = 0;
+	trajTransform.transform.rotation.y = 0;
+	trajTransform.transform.rotation.z = 0;
+	trajTransform.transform.rotation.w = 1;
+	
+	if(!msg.header.frame_id.empty()) 
+	{
+		try
+		{
+    	trajTransform = tfBuffer.lookupTransform(frameIdParam, msg.header.frame_id, ros::Time(0));
+    }
+    catch (tf2::TransformException &ex)
+    { 
+      ROS_WARN("%s",ex.what());
+    }
+  }
+	else
+		ROS_WARN("Trajectory received with empty frame_id, assumed %s", frameIdParam.c_str());
 	
 	if(msg.appendRefresh)
 	{
@@ -208,8 +231,12 @@ void drone_pose_class::trajectory_cb(const drone_pose::trajectoryMsg& msg)
 		currentWaypointId = 0;
 	}
 	
-	for (int i = 0; i < msg.poses.size(); i++)	
-	currentWaypointList.poses.push_back(msg.poses[i]);
+	for (int i = 0; i < msg.poses.size(); i++)
+	{	
+		geometry_msgs::Pose localTransformedPose;
+		tf2::doTransform(msg.poses[i], localTransformedPose, trajTransform);
+		currentWaypointList.poses.push_back(localTransformedPose);
+	}
 }
 
 // ********************************************************************
@@ -228,15 +255,7 @@ void drone_pose_class::traj_timer_cb(const ros::TimerEvent&)
 	if(currentFlightMode == 'L')
 	{
 		if(currentExtendedStateMavros.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND)
-		{
-			mavros_msgs::CommandBool armingCommand;
-			armingCommand.request.value = false;
-				
-			if(armingClient.call(armingCommand))
-			ROS_INFO("DIS-ARMED: Service call successful");
-			else
-			ROS_WARN("Could not disarm the vehicle: Service call unsuccessful");
-		}
+			arm_disarm(false);
 		else
 		{
 			increment_setpoint(0,0,-1*landSpeedParam*currentSamplingTime, 0,0,0, true);
@@ -281,10 +300,10 @@ void drone_pose_class::traj_timer_cb(const ros::TimerEvent&)
 		currentSetpoint.pose = currentWaypointList.poses.at(0);
 		publish_current_setpoint(false);
 		
-		if(pose_distance(currentSetpoint.pose, currentPose.pose) < successRadiusParam)
+		if(pose_distance(currentSetpoint.pose, currentPose.pose, "position") < successRadiusParam)
 		{
-		currentWaypointList.poses.erase(currentWaypointList.poses.begin());
-		currentWaypointId += 1;
+			currentWaypointList.poses.erase(currentWaypointList.poses.begin());
+			currentWaypointId += 1;
 		}
 		
 		std::cout << "Next waypoint in queue " << currentWaypointId << std::endl;
@@ -321,7 +340,7 @@ void drone_pose_class::wait_for_params(ros::NodeHandle *nh)
 	while(!nh->getParam("drone_pose_node/max_yaw_rate", maxYawRateParam));
 	while(!nh->getParam("drone_pose_node/land_speed", landSpeedParam));
 	
-	while(!nh->getParam("drone_pose_node/frame_id", frameId));
+	while(!nh->getParam("drone_pose_node/frame_id", frameIdParam));
 	
 	ROS_INFO("Parameters for drone_pose retreived from the parameter server");
 }
@@ -335,7 +354,7 @@ void drone_pose_class::init()
 
 	currentSetpoint.header.stamp = ros::Time::now();
 
-	currentSetpoint.header.frame_id = frameId;
+	currentSetpoint.header.frame_id = frameIdParam;
 	
 	currentSetpoint.pose.position.x = takeoffPositionParam[0];
 	currentSetpoint.pose.position.y = takeoffPositionParam[1];
@@ -376,6 +395,10 @@ void drone_pose_class::init()
 	std::cout << currentSetpoint.pose.position.x << std::endl;
 	std::cout << currentSetpoint.pose.position.y << std::endl;
 	std::cout << currentSetpoint.pose.position.z << std::endl;
+	
+	std_msgs::Bool localEstopStatus;
+	localEstopStatus.data = true; // Red Light
+	estopPub.publish(localEstopStatus);
 }
 
 // *******************************************************************
@@ -542,7 +565,7 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 		
 		currentSetpoint.header.stamp = ros::Time::now();
 		
-		currentSetpoint.header.frame_id = frameId;					 
+		currentSetpoint.header.frame_id = frameIdParam;					 
 		
 		setpointPub.publish(currentSetpoint);
 		lastCommandedSetpoint = currentSetpoint;
@@ -624,7 +647,7 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 																							 << localSetpoint.pose.position.z << ")" << std::endl;
 		
 		localSetpoint.header.stamp = ros::Time::now();
-		localSetpoint.header.frame_id = frameId;
+		localSetpoint.header.frame_id = frameIdParam;
 		
 		isBounded(localSetpoint);
 		
@@ -633,7 +656,7 @@ void drone_pose_class::publish_current_setpoint(bool usePf)
 	}
 	
 	currentSetpoint.header.stamp = ros::Time::now();
-	currentSetpoint.header.frame_id = frameId;
+	currentSetpoint.header.frame_id = frameIdParam;
 	setpointGoalPub.publish(currentSetpoint);
 
 }

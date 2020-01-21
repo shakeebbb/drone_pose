@@ -17,6 +17,7 @@
 #include <std_msgs/String.h>
 #include <math.h>
 #include <time.h>
+#include <string>
 #include <tf/transform_datatypes.h>
 #include <drone_pose/trajectoryMsg.h>
 #include <drone_pose/flightModeSrv.h>
@@ -24,6 +25,7 @@
 #include <mavros_msgs/ParamGet.h>
 #include <tf2/LinearMath/Transform.h>
 #include <tf2_ros/transform_listener.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 class drone_pose_class
 {
@@ -98,7 +100,7 @@ private:
 	float maxZVelParam;
 	float maxYawRateParam;
 	float landSpeedParam;
-	std::string frameId;
+	std::string frameIdParam;
 	
 public:
 
@@ -141,6 +143,8 @@ public:
 	void vec_to_vel(tf2::Vector3, float&, float&, float&, float&, float&);
 	void quat_to_rpy(float, float, float, float, double&, double&, double&);
 	void rpy_to_quat(double, double, double, float&, float&, float&, float&);
+	bool arm_disarm(bool);
+	bool set_px4_mode(std::string);
 };
 
 #endif
