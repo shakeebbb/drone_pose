@@ -266,7 +266,7 @@ void drone_pose_class::traj_timer_cb(const ros::TimerEvent&)
 	
 	if(currentWaypointList.poses.empty())
 	{
-		publish_current_setpoint(false);
+		publish_current_setpoint(true);
 		return;
 	}
 	
@@ -280,7 +280,7 @@ void drone_pose_class::traj_timer_cb(const ros::TimerEvent&)
 		std::cout << "Publishing waypoint " << currentWaypointId << std::endl;
 		
 		currentSetpoint.pose = currentWaypointList.poses.at(currentWaypointId);
-		publish_current_setpoint(false);
+		publish_current_setpoint(true);
 		
 		currentWaypointId += 1;
 		
@@ -298,7 +298,7 @@ void drone_pose_class::traj_timer_cb(const ros::TimerEvent&)
 		std::cout << "Publishing waypoint " << currentWaypointId << std::endl;
 		
 		currentSetpoint.pose = currentWaypointList.poses.at(0);
-		publish_current_setpoint(false);
+		publish_current_setpoint(true);
 		
 		if(pose_distance(currentSetpoint.pose, currentPose.pose, "position") < successRadiusParam)
 		{
