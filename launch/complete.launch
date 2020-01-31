@@ -60,8 +60,17 @@
 			<remap from="local_goal" to="drone_pose_carrot"/>
 		</node-->
 	
-		<include file="$(find mavros)/launch/px4.launch">
-		 <arg name="fcu_url" value="/dev/fcu"/>
+		<include file="$(find mavros)/launch/node.launch">
+			<arg name="pluginlists_yaml" value="$(find drone_pose)/launch/px4_pluginlists.yaml" />
+			<arg name="config_yaml" value="$(find drone_pose)/launch/px4_config.yaml" />
+
+			<arg name="fcu_url" value="/dev/fcu" />
+			<arg name="gcs_url" value="" />
+			<arg name="tgt_system" value="1" />
+			<arg name="tgt_component" value="1" />
+			<arg name="log_output" value="screen" />
+			<arg name="fcu_protocol" value="v2.0" />
+			<arg name="respawn_mavros" value="false" />
 		</include>
 
 		<param name="mavros/vision_pose/tf/listen" type="bool" value="true"/>
