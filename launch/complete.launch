@@ -1,5 +1,5 @@
 <launch>
-	<node name="joy_node" pkg="joy" type="joy_node" output="screen"/>
+	<!--node name="joy_node" pkg="joy" type="joy_node" output="screen"/-->
 
 	<!--remap from="B01/mavros/vision_pose/pose" to="vrpn_client_node/Wand/pose"/> 
 	<include file="$(find vrpn_client_ros)/launch/sample.launch" /-->
@@ -26,7 +26,7 @@
 			<remap from="drone_pose/pose_topic" to="mavros/local_position/pose"/>
 			<remap from="drone_pose/setpoint_topic" to="mavros/setpoint_position/local"/>
 			<remap from="drone_pose/flight_mode_service" to="drone_pose/flight_mode_service"/>
-			<remap from="drone_pose/trajectory_topic" to="drone_pose/trajectory_topic"/>
+			<remap from="drone_pose/trajectory_topic" to="drone_pose/trajectory"/>
 			<remap from="drone_pose/mavros_extended_state_topic" to="mavros/extended_state"/>
 			<remap from="drone_pose/estop_status_topic" to ="drone_pose/estop_status_topic"/>
 			<remap from="drone_pose/estop_command_topic" to="drone_pose/estop_command_topic"/>
@@ -53,12 +53,12 @@
 			
 		</node>
 		
-		<!--node name="path2traj_node" pkg="drone_pose" type="path2traj_node" output="screen">
+		<node name="path2traj_node" pkg="drone_pose" type="path2traj_node" output="screen">
 			<param name="carrot_distance" value="1.5"/>
 			<remap from="path" to="drone_pose_path"/>
-			<remap from="traj" to="drone_pose_traj"/>
+			<remap from="traj" to="drone_pose/trajectory"/>
 			<remap from="local_goal" to="drone_pose_carrot"/>
-		</node-->
+		</node>
 	
 		<include file="$(find mavros)/launch/px4.launch">
 		 <arg name="fcu_url" value="/dev/fcu"/>
