@@ -15,8 +15,8 @@
 
 		<node name="drone_pose_node" pkg="drone_pose" type="drone_pose_node" output="screen">
 		
-		  <rosparam param="x_bounds"> [-5, 10] </rosparam>
-			<rosparam param="y_bounds"> [-5, 5] </rosparam>
+		  <rosparam param="x_bounds"> [-5, 40] </rosparam>
+			<rosparam param="y_bounds"> [-6, 200] </rosparam>
 			<rosparam param="z_bounds"> [-1, 4] </rosparam>
 			
 			<rosparam param="takeoff_position"> [0, 0, 0.5] </rosparam>
@@ -57,7 +57,7 @@
 			<param name="carrot_distance" value="1.5"/>
 			<remap from="path" to="drone_pose_path"/>
 			<remap from="traj" to="drone_pose/trajectory"/>
-			<remap from="local_goal" to="drone_pose_carrot"/>
+			<remap from="local_goal" to="lookahead_point"/>
 		</node>
 	
 		<include file="$(find mavros)/launch/node.launch">
