@@ -4,7 +4,7 @@
 	<!--remap from="B01/mavros/vision_pose/pose" to="vrpn_client_node/Wand/pose"/> 
 	<include file="$(find vrpn_client_ros)/launch/sample.launch" /-->
 
-	<group ns="B01">
+	<group ns="A01">
 
 		<!--node name="tf2pose" pkg="drone_pose" type="tf2pose" output="screen">
 			<param name="tf_target_frame" value="odom"/>
@@ -15,9 +15,9 @@
 
 		<node name="drone_pose_node" pkg="drone_pose" type="drone_pose_node" output="screen">
 		
-		  <rosparam param="x_bounds"> [-5, 40] </rosparam>
-			<rosparam param="y_bounds"> [-6, 200] </rosparam>
-			<rosparam param="z_bounds"> [-1, 4] </rosparam>
+		  <rosparam param="x_bounds"> [-5, 200] </rosparam>
+			<rosparam param="y_bounds"> [-100, 200] </rosparam>
+			<rosparam param="z_bounds"> [-1, 10] </rosparam>
 			
 			<rosparam param="takeoff_position"> [0, 0, 0.5] </rosparam>
 			
