@@ -30,6 +30,8 @@
 			<remap from="drone_pose/mavros_extended_state_topic" to="mavros/extended_state"/>
 			<remap from="drone_pose/estop_status_topic" to ="drone_pose/estop_status_topic"/>
 			<remap from="drone_pose/estop_command_topic" to="drone_pose/estop_command_topic"/>
+			<remap from="drone_pose/battery_status_topic" to="mavros/battery"/>
+			<remap from="drone_pose/landing_safety_topic" to="drone_pose/landing_safety_topic"/>
 
 			<param name="arm_button" type="int" value="0"/>
 			<param name="disarm_button" type="int" value="3"/>
@@ -47,7 +49,10 @@
 			<param name="max_z_vel" type="double" value="0.6"/>
 			<param name="max_yaw_rate" type="double" value="1.00"/>
 			<param name="land_speed" type="double" value="0.2"/>
-			<param name="successRadius" type="double" value="0.35"/>
+			<param name="success_radius" type="double" value="0.35"/>
+			
+			<param name="low_battery_voltage" type="double" value="12.0"/>
+			<param name="critical_battery_voltage" type="double" value="11.0"/>
 			
 			<param name="frame_id" type="string" value="odom"/>
 			

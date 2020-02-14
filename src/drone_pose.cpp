@@ -12,6 +12,8 @@ drone_pose_class::drone_pose_class(ros::NodeHandle *nh)
 	pfSub = nh->subscribe("drone_pose/pf_topic", 10, &drone_pose_class::pf_cb, this);
 	estopSub = nh->subscribe("drone_pose/estop_status_topic", 10, &drone_pose_class::estop_cb, this);
 	extendedStateMavrosSub = nh->subscribe("drone_pose/mavros_extended_state_topic", 10, &drone_pose_class::extended_state_mavros_cb, this);
+	batteryStatusSub = nh->subscribe("drone_pose/battery_status_topic", 10, &drone_pose_class::battery_status_cb, this);
+	landingSafetySub = nh->subscribe("drone_pose/landing_safety_topic", 10, &drone_pose_class::landing_safety_cb, this);
 		
 	// Publishers
 	setpointPub = nh->advertise<geometry_msgs::PoseStamped>("drone_pose/setpoint_topic", 10);
@@ -39,6 +41,29 @@ drone_pose_class::drone_pose_class(ros::NodeHandle *nh)
 	init();
 }
 
+// ***********************************************************************
+void drone_pose_class::landing_safety_cb(const std_msgs::Bool& msg)
+{
+	isSafeToLand = msg.data;
+}
+
+// ***********************************************************************
+void drone_pose_class::battery_status_cb(const sensor_msgs::BatteryState& msg)
+{
+	if(msg.voltage < lowBatteryVoltageParam && isSafeToLand)
+	{
+		currentFlightMode = 'L';
+		currentSetpoint = currentPose;
+		return;
+	}
+	
+	if(msg.voltage < criticalBatteryVoltageParam)
+	{
+		currentFlightMode = 'L';
+		currentSetpoint = currentPose;
+		return;
+	}
+}
 // ***********************************************************************
 bool drone_pose_class::arm_disarm(bool field)
 {
@@ -333,12 +358,15 @@ void drone_pose_class::wait_for_params(ros::NodeHandle *nh)
 	while(!nh->getParam("drone_pose_node/z_axis", zAxisParam));
 	while(!nh->getParam("drone_pose_node/yaw_axis", yawAxisParam));
 	
-	while(!nh->getParam("drone_pose_node/successRadius", successRadiusParam));
+	while(!nh->getParam("drone_pose_node/success_radius", successRadiusParam));
 	
 	while(!nh->getParam("drone_pose_node/max_xy_vel", maxXYVelParam));
 	while(!nh->getParam("drone_pose_node/max_z_vel", maxZVelParam));
 	while(!nh->getParam("drone_pose_node/max_yaw_rate", maxYawRateParam));
 	while(!nh->getParam("drone_pose_node/land_speed", landSpeedParam));
+	
+	while(!nh->getParam("drone_pose_node/low_battery_voltage", lowBatteryVoltageParam));
+	while(!nh->getParam("drone_pose_node/critical_battery_voltage", criticalBatteryVoltageParam));
 	
 	while(!nh->getParam("drone_pose_node/frame_id", frameIdParam));
 	
@@ -399,6 +427,8 @@ void drone_pose_class::init()
 	std_msgs::Bool localEstopStatus;
 	localEstopStatus.data = true; // Red Light
 	estopPub.publish(localEstopStatus);
+	
+	isSafeToLand = true;
 }
 
 // *******************************************************************

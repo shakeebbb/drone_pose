@@ -26,6 +26,7 @@
 #include <tf2/LinearMath/Transform.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <sensor_msgs/BatteryState.h>
 
 class drone_pose_class
 {
@@ -40,6 +41,8 @@ private:
 	ros::Subscriber pfSub;
 	ros::Subscriber estopSub;
 	ros::Subscriber extendedStateMavrosSub;
+	ros::Subscriber batteryStatusSub;
+	ros::Subscriber landingSafetySub;
 	
 	// Publishers
 	ros::Publisher setpointPub;
@@ -73,6 +76,7 @@ private:
 	float currentMaxXYVel;
 	float currentMaxZVel;
 	float currentMaxYawRate;
+	bool isSafeToLand;
 	
 	// Status variables
 	mavros_msgs::State currentStateMavros;
@@ -101,6 +105,8 @@ private:
 	float maxYawRateParam;
 	float landSpeedParam;
 	std::string frameIdParam;
+	float lowBatteryVoltageParam;
+	float criticalBatteryVoltageParam;
 	
 public:
 
@@ -119,6 +125,8 @@ public:
 	 						       drone_pose::flightModeSrv::Response&);
 	void pf_cb(const geometry_msgs::TwistStamped&);
 	void estop_cb(const std_msgs::Bool&);
+	void battery_status_cb(const sensor_msgs::BatteryState&);
+	void landing_safety_cb(const std_msgs::Bool&);
 									 
 	// Other cpp functions
 	void wait_for_params(ros::NodeHandle*);
