@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
 	tf2_ros
+	visualization_msgs
   message_generation
 )
 
@@ -128,7 +129,8 @@ include_directories(
 
 ## Declare a C++ library
  add_library(drone_pose
-   src/drone_pose.cpp
+   src/drone_pose_main.cpp
+   src/drone_pose_aux.cpp
  )
 
 ## Add cmake target dependencies of the library

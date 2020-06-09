@@ -1,94 +1,89 @@
 <launch>
-	<!--node name="joy_node" pkg="joy" type="joy_node" output="screen"/-->
 
-	<!--remap from="B01/mavros/vision_pose/pose" to="vrpn_client_node/Wand/pose"/> 
-	<include file="$(find vrpn_client_ros)/launch/sample.launch" /-->
-
-	<group ns="A01">
-
-		<!--node name="tf2pose" pkg="drone_pose" type="tf2pose" output="screen">
-			<param name="tf_target_frame" value="odom"/>
-			<param name="tf_source_frame" value="base_link"/>
-			<param name="pose_frame_id" value="world"/>
-			<remap from="pose_topic" to="mavros/vision_pose/pose"/>
-		</node-->
-
-		<node name="drone_pose_node" pkg="drone_pose" type="drone_pose_node" output="screen">
-		
-		  <rosparam param="x_bounds"> [-5, 200] </rosparam>
-			<rosparam param="y_bounds"> [-100, 200] </rosparam>
-			<rosparam param="z_bounds"> [-1, 10] </rosparam>
-			
-			<rosparam param="takeoff_position"> [0, 0, 0.5] </rosparam>
-			
-			<remap from="drone_pose/mavros_state_topic" to="mavros/state"/>
-			<remap from="drone_pose/joy_topic" to="/joy"/>
-			<remap from="drone_pose/pose_topic" to="mavros/local_position/pose"/>
-			<remap from="drone_pose/setpoint_topic" to="mavros/setpoint_position/local"/>
-			<remap from="drone_pose/flight_mode_service" to="drone_pose/flight_mode_service"/>
-			<remap from="drone_pose/trajectory_topic" to="drone_pose/trajectory"/>
-			<remap from="drone_pose/mavros_extended_state_topic" to="mavros/extended_state"/>
-			<remap from="drone_pose/estop_status_topic" to ="drone_pose/estop_status_topic"/>
-			<remap from="drone_pose/estop_command_topic" to="drone_pose/estop_command_topic"/>
-			<remap from="drone_pose/battery_status_topic" to="mavros/battery"/>
-			<remap from="drone_pose/landing_safety_topic" to="drone_pose/landing_safety_topic"/>
-
-			<param name="arm_button" type="int" value="0"/>
-			<param name="disarm_button" type="int" value="3"/>
-
-			<param name="A_button" type="int" value="1"/>
-			<param name="B_button" type="int" value="2"/>
-			<param name="land_button" type="int" value="4"/>
-
-			<param name="x_axis" type="int" value="3"/>
-      			<param name="y_axis" type="int" value="2"/>
-			<param name="z_axis" type="int" value="1"/>
-			<param name="yaw_axis" type="int" value="0"/>
-			
-			<param name="max_xy_vel" type="double" value="0.6"/>
-			<param name="max_z_vel" type="double" value="0.6"/>
-			<param name="max_yaw_rate" type="double" value="1.00"/>
-			<param name="land_speed" type="double" value="0.2"/>
-			<param name="success_radius" type="double" value="0.35"/>
-			
-			<param name="low_battery_voltage" type="double" value="12.0"/>
-			<param name="critical_battery_voltage" type="double" value="11.0"/>
-			
-			<param name="frame_id" type="string" value="odom"/>
-			
-		</node>
-		
-		<node name="path2traj_node" pkg="drone_pose" type="path2traj_node" output="screen">
-			<param name="carrot_distance" value="1.5"/>
-			<remap from="path" to="drone_pose_path"/>
-			<remap from="traj" to="drone_pose/trajectory"/>
-			<remap from="local_goal" to="lookahead_point"/>
-		</node>
+	<arg name="mav_name" default="$(env ROS_NAMESPACE)"/>
+	<arg name="launch_joy" default="false"/>
+	<arg name="launch_mocap" default="false"/>
+	<arg name="launch_drone_pose" default="true"/>
+	<arg name="launch_mavros" default="false"/>
 	
-		<include file="$(find mavros)/launch/node.launch">
-			<arg name="pluginlists_yaml" value="$(find drone_pose)/launch/px4_pluginlists.yaml" />
-			<arg name="config_yaml" value="$(find drone_pose)/launch/px4_config.yaml" />
-
-			<arg name="fcu_url" value="/dev/fcu" />
-			<arg name="gcs_url" value="" />
-			<arg name="tgt_system" value="1" />
-			<arg name="tgt_component" value="1" />
-			<arg name="log_output" value="screen" />
-			<arg name="fcu_protocol" value="v2.0" />
-			<arg name="respawn_mavros" value="false" />
-		</include>
-
-		<param name="mavros/vision_pose/tf/listen" type="bool" value="true"/>
-                <param name="mavros/vision_pose/tf/frame_id" type="string" value="odom"/>
-                <param name="mavros/vision_pose/tf/child_frame_id" type="string" value="base_link"/>
-                <param name="mavros/vision_pose/tf/rate_limit" type="double" value="50"/>
-
-		<!--param name="mavros/distance_sensor/sonar_1_sub/id" type="int" value="2"/>
-		<param name="mavros/distance_sensor/sonar_1_sub/subscriber" type="bool" value="true"/-->
-
-		<!--remap to="/teraranger_evo" from="mavros/distance_sensor/laser_1_sub"/-->
-	</group>
+	<arg name="world_frame" default="world"/>
+	<arg name="base_frame" default="$(arg mav_name)/base_link"/>
 	
+	<!-- .................................................... -->
+	
+	<node if="$(arg launch_joy)" name="joy_node" pkg="joy" type="joy_node" output="screen"/>
+	
+	<!-- .................................................... -->
+	
+	<include if="$(arg launch_mocap)" file="$(find vrpn_client_ros)/launch/sample.launch" />
+	
+	<!-- .................................................... -->
+
+	<node if="$(arg launch_drone_pose)" name="drone_pose" pkg="drone_pose" type="drone_pose_node" output="screen">
+		<remap from="drone_pose/mavros_state_in" to="mavros/state"/>
+		<remap from="drone_pose/joy_in" to="/joy"/>
+		<remap from="drone_pose/pose_in" to="/A01/mavros/local_position/pose"/>
+		<remap from="drone_pose/estop_status_in" to ="drone_pose/estop_status_in"/>
+		<remap from="drone_pose/mavros_extended_state_in" to="mavros/extended_state"/>
+		<remap from="drone_pose/battery_status_in" to="mavros/battery"/>
+		<remap from="drone_pose/landing_safety_in" to="drone_pose/landing_safety_in"/>
+		<remap from="drone_pose/traj_set_in" to="drone_pose/traj_set_in"/>
+		<remap from="drone_pose/twist_set_in" to="drone_pose/twist_set_in"/>
+		<remap from="drone_pose/mavros_setpoint_out" to="command/pose"/>
+		<remap from="drone_pose/attractor_setpoint_out" to="drone_pose/attractor_setpoint_out"/>
+		<remap from="drone_pose/estop_command_out" to="drone_pose/estop_command_out"/>
+		
+		<rosparam param="x_bounds"> [-5, 200] </rosparam>
+		<rosparam param="y_bounds"> [-100, 200] </rosparam>
+		<rosparam param="z_bounds"> [-1, 10] </rosparam>
+			
+		<rosparam param="takeoff_position"> [0, 0, 0.5] </rosparam>
+		
+		<param name="arm_button" type="int" value="0"/>
+		<param name="disarm_button" type="int" value="3"/>
+
+		<param name="A_button" type="int" value="1"/>
+		<param name="B_button" type="int" value="2"/>
+		<param name="land_button" type="int" value="4"/>
+		<param name="send_attractor_button" type="int" value="5"/>
+
+		<param name="x_axis" type="int" value="3"/>
+    <param name="y_axis" type="int" value="2"/>
+		<param name="z_axis" type="int" value="1"/>
+		<param name="yaw_axis" type="int" value="0"/>
+
+		<param name="land_speed" type="double" value="0.2"/>
+		<param name="success_radius" type="double" value="0.35"/>
+		<param name="sampling_time" type="double" value="0.05"/>
+			
+		<param name="low_battery_voltage" type="double" value="12.0"/>
+		<param name="critical_battery_voltage" type="double" value="11.0"/>
+			
+		<param name="world_frame_id" type="string" value="$(arg world_frame)"/>
+			
+	</node>
+	
+	<!-- .................................................... -->
+
+	<include if="$(arg launch_mavros)" file="$(find mavros)/launch/node.launch">
+		<arg name="pluginlists_yaml" value="$(find drone_pose)/launch/px4_pluginlists.yaml" />
+		<arg name="config_yaml" value="$(find drone_pose)/launch/px4_config.yaml" />
+
+		<arg name="fcu_url" value="/dev/fcu" />
+		<arg name="gcs_url" value="" />
+		<arg name="tgt_system" value="1" />
+		<arg name="tgt_component" value="1" />
+		<arg name="log_output" value="screen" />
+		<arg name="fcu_protocol" value="v2.0" />
+		<arg name="respawn_mavros" value="false" />
+	</include>
+	
+	<!-- .................................................... -->
+
+	<param name="mavros/vision_pose/tf/listen" type="bool" value="true"/>
+  <param name="mavros/vision_pose/tf/frame_id" type="string" value="$(arg world_frame)"/>
+  <param name="mavros/vision_pose/tf/child_frame_id" type="string" value="$(arg base_frame)"/>
+  <param name="mavros/vision_pose/tf/rate_limit" type="double" value="50"/>	
 	
 </launch>
 

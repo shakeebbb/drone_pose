@@ -1,6 +1,9 @@
 #ifndef DRONEPOSE_H
 #define DRONEPOSE_H
 
+#include <math.h>
+#include <time.h>
+#include <string>
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Quaternion.h>
@@ -15,9 +18,6 @@
 #include <std_msgs/Int32.h>
 #include <std_msgs/Bool.h>
 #include <std_msgs/String.h>
-#include <math.h>
-#include <time.h>
-#include <string>
 #include <tf/transform_datatypes.h>
 #include <drone_pose/trajectoryMsg.h>
 #include <drone_pose/flightModeSrv.h>
@@ -27,86 +27,84 @@
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <sensor_msgs/BatteryState.h>
+#include <visualization_msgs/MarkerArray.h>
+#include <visualization_msgs/Marker.h>
 
 class drone_pose_class
 {
 
 private:
 	// Subscribers
-	ros::Subscriber stateMavrosSub;
-	ros::Subscriber joySub;
-	ros::Subscriber poseSub;
-	ros::Subscriber setpointSub;
-	ros::Subscriber trajectorySub;
-	ros::Subscriber pfSub;
-	ros::Subscriber estopSub;
-	ros::Subscriber extendedStateMavrosSub;
-	ros::Subscriber batteryStatusSub;
-	ros::Subscriber landingSafetySub;
+	ros::Subscriber stateMavrosSub_;
+	ros::Subscriber joySub_;
+	ros::Subscriber poseSub_;
+	ros::Subscriber estopSub_;
+	ros::Subscriber extStateMavrosSub_;
+	ros::Subscriber batteryStatusSub_;
+	ros::Subscriber landingSafetySub_;
+	
+	ros::Subscriber trajSetSub_;
+	ros::Subscriber twistSetSub_;
 	
 	// Publishers
-	ros::Publisher setpointPub;
-	ros::Publisher setpointGoalPub;
-	ros::Publisher flightModePub;
-	ros::Publisher estopPub;
+	ros::Publisher mavrosSetpointPub_;
+	ros::Publisher attSetpointPub_;
+	ros::Publisher vizPub_;
+
+	ros::Publisher flightModePub_;
+	ros::Publisher estopPub_;
 	
 	// Servers
-	ros::ServiceServer flightModeServer;
+	ros::ServiceServer flightModeServer_;
 	
 	// Clients
-	ros::ServiceClient armingClient;
-	ros::ServiceClient setModeClient;
-	ros::ServiceClient setParamClient;
-	ros::ServiceClient getParamClient;
+	ros::ServiceClient armingClient_;
+	ros::ServiceClient setModeClient_;
+	ros::ServiceClient setParamClient_;
+	ros::ServiceClient getParamClient_;
 	
 	// TF Buffer
-  tf2_ros::Buffer tfBuffer;
-  tf2_ros::TransformListener* tfListenerPtr;
+  tf2_ros::Buffer tfBuffer_;
+  tf2_ros::TransformListener* tfListenerPtr_;
 	
 	// Timers
-	ros::Timer trajTimer;
+	ros::Timer trajTimer_;
 	
 	// Mission variables
-	geometry_msgs::PoseStamped currentPose;
-	geometry_msgs::PoseStamped currentSetpoint;
-	int currentWaypointId;
-	geometry_msgs::PoseArray currentWaypointList;
-	float currentSamplingTime;
-	char currentFlightMode;
-	float currentMaxXYVel;
-	float currentMaxZVel;
-	float currentMaxYawRate;
-	bool isSafeToLand;
+	geometry_msgs::Pose robotPose_;
+	int waypointId_;
+	geometry_msgs::PoseArray waypointList_;
+	float samplingTime_;
+	char flightMode_;
+	bool isSafeToLand_;
+	float joystickVal_[4];
 	
 	// Status variables
-	mavros_msgs::State currentStateMavros;
-	mavros_msgs::ExtendedState currentExtendedStateMavros;
-	float currentJoystickVal[4]; //x,y,z,yaw
-	bool currentTrajTimerStatus;
-	geometry_msgs::TwistStamped currentPotentialField;
+	mavros_msgs::State stateMavros_;
+	mavros_msgs::ExtendedState extStateMavros_;
+	geometry_msgs::Twist twistSet_;
+	geometry_msgs::Pose joySetpoint_;
 	
 	// From Parameter Server
-	std::vector<float> xBoundsParam;
-	std::vector<float> yBoundsParam;
-	std::vector<float> zBoundsParam;
-	std::vector<float> takeoffPositionParam;
-	float successRadiusParam;
-	int armButtonParam;
-	int disarmButtonParam;
-	int landButtonParam;
-	int aButtonParam;
-	int bButtonParam;
-	int xAxisParam;
-	int yAxisParam;
-	int zAxisParam;
-	int yawAxisParam;
-	float maxXYVelParam;
-	float maxZVelParam;
-	float maxYawRateParam;
-	float landSpeedParam;
-	std::string frameIdParam;
-	float lowBatteryVoltageParam;
-	float criticalBatteryVoltageParam;
+	std::vector<float> xBounds_;
+	std::vector<float> yBounds_;
+	std::vector<float> zBounds_;
+	std::vector<float> takeoffPosition_;
+	float successRadius_;
+	int armButton_;
+	int disarmButton_;
+	int landButton_;
+	int aButton_;
+	int bButton_;
+	int sendAttButton_;
+	int xAxis_;
+	int yAxis_;
+	int zAxis_;
+	int yawAxis_;
+	float landSpeed_;
+	std::string frameId_;
+	float lowBatteryVoltage_;
+	float criticalBatteryVoltage_;
 	
 public:
 
@@ -119,11 +117,11 @@ public:
 	void extended_state_mavros_cb(const mavros_msgs::ExtendedState&);
 	void pose_cb(const geometry_msgs::PoseStamped&);
 	void traj_timer_cb(const ros::TimerEvent&);
-	void trajectory_cb(const drone_pose::trajectoryMsg&);
+	void traj_set_cb(const drone_pose::trajectoryMsg&);
 	void joy_cb(const sensor_msgs::Joy&);
 	bool flightMode_cb(drone_pose::flightModeSrv::Request&,
 	 						       drone_pose::flightModeSrv::Response&);
-	void pf_cb(const geometry_msgs::TwistStamped&);
+	void twist_set_cb(const geometry_msgs::TwistStamped&);
 	void estop_cb(const std_msgs::Bool&);
 	void battery_status_cb(const sensor_msgs::BatteryState&);
 	void landing_safety_cb(const std_msgs::Bool&);
@@ -131,28 +129,25 @@ public:
 	// Other cpp functions
 	void wait_for_params(ros::NodeHandle*);
 	void init();
-	bool isBounded(geometry_msgs::PoseStamped&);
-	geometry_msgs::Pose get_pose_from_raw(float, float, float, float, float, float);
-	void increment_setpoint(float, float, float, float, float, float, bool);
+	bool is_bounded(geometry_msgs::Pose&);
+	geometry_msgs::Pose get_pose_from_raw(float=0, float=0, float=0, float=0, float=0, float=0);
+	geometry_msgs::Twist get_twist_from_raw(float=0, float=0, float=0, float=0, float=0, float=0);
+	void increment_setpoint(geometry_msgs::Pose&, float, float, float, float, float, float, std::string = "add");
 	static float pose_distance(geometry_msgs::Pose, geometry_msgs::Pose, std::string = "all");
-	geometry_msgs::PoseStamped get_current_setpoint();
 	float get_current_sampling_time();
 	char get_current_flight_mode();
-	void publish_current_setpoint(bool);
-	void start_traj_timer(float);
-	void stop_traj_timer();
-	void update_pf_from_joy();
-	void set_max_vel_params(float, float, float);
-	void get_max_vel_params(float&, float&, float&);
-	float get_vector_magnitude(tf2::Vector3&);
-	geometry_msgs::Pose transform_world_to_body(geometry_msgs::Pose, geometry_msgs::Pose, bool = true);
-	tf2::Vector3 transform_world_to_body(tf2::Vector3, geometry_msgs::Pose, bool);
-	bool isPfActive();
-	void vec_to_vel(tf2::Vector3, float&, float&, float&, float&, float&);
+	void publish_setpoint(std::string, geometry_msgs::Twist, geometry_msgs::Pose);
+	void traj_timer_start_stop(std::string, float);
+	void update_twist_set_from_joy();
 	void quat_to_rpy(float, float, float, float, double&, double&, double&);
 	void rpy_to_quat(double, double, double, float&, float&, float&, float&);
 	bool arm_disarm(bool);
 	bool set_px4_mode(std::string);
+	void publish_viz(geometry_msgs::Pose);
+	bool change_flight_mode(char);
+	geometry_msgs::Pose pose_to_setpoint(geometry_msgs::Pose);
+	geometry_msgs::Twist get_twist_from_joy();
+	void publish_attractor(geometry_msgs::Pose);
 };
 
 #endif
