@@ -313,13 +313,13 @@ void drone_pose_class::joy_cb(const sensor_msgs::Joy& msg)
 	}
 
 	if(msg.buttons[aButton_] == 1)
-		change_flight_mode('J');
+		change_flight_mode('J', true);
 		
 	if(msg.buttons[landButton_] == 1)
-		change_flight_mode('L');
+		change_flight_mode('L', true);
 		
 	if(msg.buttons[bButton_] == 1)
-		change_flight_mode('V');
+		change_flight_mode('V', true);
 		
 	if(msg.buttons[sendAttButton_] == 1)
 		publish_attractor(joySetpoint_);

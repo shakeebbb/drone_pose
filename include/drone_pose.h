@@ -144,7 +144,7 @@ public:
 	bool arm_disarm(bool);
 	bool set_px4_mode(std::string);
 	void publish_viz(geometry_msgs::Pose);
-	bool change_flight_mode(char);
+	bool change_flight_mode(char, bool=false);
 	geometry_msgs::Pose pose_to_setpoint(geometry_msgs::Pose);
 	geometry_msgs::Twist get_twist_from_joy();
 	void publish_attractor(geometry_msgs::Pose);

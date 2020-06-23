@@ -47,15 +47,13 @@ void drone_pose_class::battery_status_cb(const sensor_msgs::BatteryState& msg)
 {
 	if( (msg.voltage < lowBatteryVoltage_) && isSafeToLand_)
 	{
-		if (flightMode_ != 'L')
-			change_flight_mode('L');
+		change_flight_mode('L');
 		return;
 	}
 	
 	if(msg.voltage < criticalBatteryVoltage_)
 	{
-		if (flightMode_ != 'L')
-			change_flight_mode('L');
+		change_flight_mode('L');
 		return;
 	}
 }
@@ -78,7 +76,7 @@ bool drone_pose_class::set_px4_mode(std::string field)
 // ***********************************************************************
 void drone_pose_class::estop_cb(const std_msgs::Bool& msg)
 {
-	if(msg.data == true && flightMode_ != 'L')
+	if(msg.data == true)
 		change_flight_mode('L');
 }
 
@@ -380,8 +378,11 @@ void drone_pose_class::publish_attractor(geometry_msgs::Pose poseIn)
 	attSetpointPub_.publish(pointOut);
 }
 // ************************************************************************
-bool drone_pose_class::change_flight_mode(char flModeIn)
+bool drone_pose_class::change_flight_mode(char flModeIn, bool forceChange)
 {
+	if ( !forceChange && (flModeIn == flightMode_) )
+		return true;
+	
 	if (flModeIn == 'J')
 	{
 		joySetpoint_ = pose_to_setpoint(robotPose_);
