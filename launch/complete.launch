@@ -1,12 +1,13 @@
 <launch>
 
 	<arg name="mav_name" default="$(env ROS_NAMESPACE)"/>
+
 	<arg name="launch_joy" default="false"/>
 	<arg name="launch_mocap" default="false"/>
 	<arg name="launch_drone_pose" default="true"/>
 	<arg name="launch_mavros" default="false"/>
 	
-	<arg name="world_frame" default="world"/>
+	<arg name="world_frame" default="$(arg mav_name)/odom"/>
 	<arg name="base_frame" default="$(arg mav_name)/base_link"/>
 	
 	<!-- .................................................... -->
@@ -66,8 +67,8 @@
 	<!-- .................................................... -->
 
 	<include if="$(arg launch_mavros)" file="$(find mavros)/launch/node.launch">
-		<arg name="pluginlists_yaml" value="$(find drone_pose)/launch/px4_pluginlists.yaml" />
-		<arg name="config_yaml" value="$(find drone_pose)/launch/px4_config.yaml" />
+		<arg name="pluginlists_yaml" value="$(find mavros)/launch/px4_pluginlists.yaml" />
+		<arg name="config_yaml" value="$(find mavros)/launch/px4_config.yaml" />
 
 		<arg name="fcu_url" value="/dev/fcu" />
 		<arg name="gcs_url" value="" />
@@ -83,7 +84,12 @@
 	<param name="mavros/vision_pose/tf/listen" type="bool" value="true"/>
   <param name="mavros/vision_pose/tf/frame_id" type="string" value="$(arg world_frame)"/>
   <param name="mavros/vision_pose/tf/child_frame_id" type="string" value="$(arg base_frame)"/>
-  <param name="mavros/vision_pose/tf/rate_limit" type="double" value="50"/>	
+  <param name="mavros/vision_pose/tf/rate_limit" type="double" value="50"/>
+
+  <param name="mavros/local_position/frame_id" value="$(arg mav_name)/odom"/>
+  <param name="mavros/global_position/frame_id" value="$(arg mav_name)/odom"/>
+  <param name="mavros/global_position/child_frame_id" value="$(arg mav_name)/base_link"/>
+  <param name="mavros/imu/frame_id" value="$(arg mav_name)/base_link"/>	
 	
 </launch>
 
