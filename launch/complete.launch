@@ -40,16 +40,16 @@
 			
 		<rosparam param="takeoff_position"> [0, 0, 0.5] </rosparam>
 		
-		<param name="arm_button" type="int" value="0"/>
+		<param name="arm_button" type="int" value="2"/>
 		<param name="disarm_button" type="int" value="3"/>
 
-		<param name="A_button" type="int" value="1"/>
-		<param name="B_button" type="int" value="2"/>
+		<param name="A_button" type="int" value="0"/>
+		<param name="B_button" type="int" value="1"/>
 		<param name="land_button" type="int" value="4"/>
 		<param name="send_attractor_button" type="int" value="5"/>
 
-		<param name="x_axis" type="int" value="3"/>
-    <param name="y_axis" type="int" value="2"/>
+		<param name="x_axis" type="int" value="4"/>
+    <param name="y_axis" type="int" value="3"/>
 		<param name="z_axis" type="int" value="1"/>
 		<param name="yaw_axis" type="int" value="0"/>
 
@@ -57,8 +57,8 @@
 		<param name="success_radius" type="double" value="0.35"/>
 		<param name="sampling_time" type="double" value="0.05"/>
 			
-		<param name="low_battery_voltage" type="double" value="12.0"/>
-		<param name="critical_battery_voltage" type="double" value="11.0"/>
+		<param name="low_battery_voltage" type="double" value="13.5"/>
+		<param name="critical_battery_voltage" type="double" value="12.5"/>
 			
 		<param name="world_frame_id" type="string" value="$(arg world_frame)"/>
 			
@@ -86,10 +86,10 @@
   <param name="mavros/vision_pose/tf/child_frame_id" type="string" value="$(arg base_frame)"/>
   <param name="mavros/vision_pose/tf/rate_limit" type="double" value="50"/>
 
-  <param name="mavros/local_position/frame_id" value="$(arg mav_name)/odom"/>
-  <param name="mavros/global_position/frame_id" value="$(arg mav_name)/odom"/>
-  <param name="mavros/global_position/child_frame_id" value="$(arg mav_name)/base_link"/>
-  <param name="mavros/imu/frame_id" value="$(arg mav_name)/base_link"/>	
+  <param name="mavros/local_position/frame_id" value="$(arg world_frame)"/>
+  <param name="mavros/global_position/frame_id" value="$(arg world_frame)"/>
+  <param name="mavros/global_position/child_frame_id" value="$(arg base_frame)"/>
+  <param name="mavros/imu/frame_id" value="$(arg base_frame)"/>	
 	
 </launch>
 
