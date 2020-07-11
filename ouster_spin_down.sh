@@ -1,9 +1,8 @@
 #!/bin/bash
 
 nc os1-991939999414.local 7501
-set_config_param auto_start_flag 1
+set_config_param auto_start_flag 0
 reinitialize
-write_config_txt
 
 sleep 5
 
