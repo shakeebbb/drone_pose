@@ -89,8 +89,8 @@ void drone_pose_class::init()
 // ********************************************************************
 void drone_pose_class::traj_timer_cb(const ros::TimerEvent&)
 {
-	increment_setpoint(joySetpoint_, 0.004, 0.004, 0.004,
-											 0, 0, 0.004, "joy");
+	increment_setpoint(joySetpoint_, 0.008, 0.008, 0.008,
+											 0, 0, 0.008, "joy");
 											 
 	publish_viz(robotPose_);
 	if(flightMode_ == 'J')
