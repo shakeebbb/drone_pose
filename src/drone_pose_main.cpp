@@ -28,10 +28,10 @@ drone_pose_class::drone_pose_class(ros::NodeHandle *nh)
 	flightModeServer_ = nh->advertiseService("flight_mode_service", &drone_pose_class::flightMode_cb, this);
 		
 	// Clients
-	armingClient_ = nh->serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
-	setModeClient_ = nh->serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
-	getParamClient_ = nh->serviceClient<mavros_msgs::ParamGet>("mavros/param/get");
-	setParamClient_ = nh->serviceClient<mavros_msgs::ParamSet>("mavros/param/set");
+	armingClient_ = nh->serviceClient<mavros_msgs::CommandBool>("arming_client");
+	setModeClient_ = nh->serviceClient<mavros_msgs::SetMode>("set_mode_client");
+	getParamClient_ = nh->serviceClient<mavros_msgs::ParamGet>("get_param_client");
+	setParamClient_ = nh->serviceClient<mavros_msgs::ParamSet>("set_param_client");
 		
 	// Timers
 	trajTimer_ = nh->createTimer(ros::Duration(samplingTime_), &drone_pose_class::traj_timer_cb, this);
@@ -89,8 +89,8 @@ void drone_pose_class::init()
 // ********************************************************************
 void drone_pose_class::traj_timer_cb(const ros::TimerEvent&)
 {
-	increment_setpoint(joySetpoint_, 0.008, 0.008, 0.008,
-											 0, 0, 0.008, "joy");
+	increment_setpoint(joySetpoint_, 0.02, 0.02, 0.02,
+											 0, 0, 0.02, "joy");
 											 
 	publish_viz(robotPose_);
 	if(flightMode_ == 'J')
@@ -119,7 +119,7 @@ void drone_pose_class::traj_timer_cb(const ros::TimerEvent&)
 			arm_disarm(false);
 		else
 		{
-			geometry_msgs::Twist twist = get_twist_from_raw(0,0,-1*landSpeed_*samplingTime_,0,0,0);
+			geometry_msgs::Twist twist = get_twist_from_raw(0,0,-1*landSpeed_,0,0,0);
 			publish_setpoint("use_twist", twist, get_pose_from_raw());
 			
 			//increment_setpoint(mavSetpoint_, 0,0,-1*landSpeed_*samplingTime_, 0,0,0);

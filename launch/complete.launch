@@ -5,7 +5,7 @@
 	<arg name="launch_joy" default="false"/>
 	<arg name="launch_mocap" default="false"/>
 	<arg name="launch_drone_pose" default="true"/>
-	<arg name="launch_mavros" default="false"/>
+	<arg name="launch_mavros" default="true"/>
 	
 	<arg name="world_frame" default="$(arg mav_name)/odom"/>
 	<arg name="base_frame" default="$(arg mav_name)/base_link"/>
@@ -21,19 +21,24 @@
 	<!-- .................................................... -->
 
 	<node if="$(arg launch_drone_pose)" name="drone_pose" pkg="drone_pose" type="drone_pose_node" output="screen">
-		<remap from="drone_pose/mavros_state_in" to="mavros/state"/>
-		<remap from="drone_pose/joy_in" to="/joy"/>
-		<remap from="drone_pose/pose_in" to="/A01/mavros/local_position/pose"/>
-		<remap from="drone_pose/estop_status_in" to ="drone_pose/estop_status_in"/>
-		<remap from="drone_pose/mavros_extended_state_in" to="mavros/extended_state"/>
-		<remap from="drone_pose/battery_status_in" to="mavros/battery"/>
-		<remap from="drone_pose/landing_safety_in" to="drone_pose/landing_safety_in"/>
-		<remap from="drone_pose/traj_set_in" to="drone_pose/traj_set_in"/>
-		<remap from="drone_pose/twist_set_in" to="drone_pose/twist_set_in"/>
-		<remap from="drone_pose/mavros_setpoint_out" to="command/pose"/>
-		<remap from="drone_pose/attractor_setpoint_out" to="drone_pose/attractor_setpoint_out"/>
-		<remap from="drone_pose/estop_command_out" to="drone_pose/estop_command_out"/>
+		<remap from="~/mavros_state_in" to="mavros/state"/>
+		<remap from="~/joy_in" to="/joy"/>
+		<remap from="~/pose_in" to="mavros/local_position/pose"/>
+		<remap from="~/estop_status_in" to ="drone_pose/estop_status_in"/>
+		<remap from="~/mavros_extended_state_in" to="mavros/extended_state"/>
+		<remap from="~/battery_status_in" to="mavros/battery"/>
+		<remap from="~/landing_safety_in" to="drone_pose/landing_safety_in"/>
+		<remap from="~/traj_set_in" to="drone_pose/traj_set_in"/>
+		<remap from="~/twist_set_in" to="drone_pose/twist_set_in"/>
+		<remap from="~/mavros_setpoint_out" to="mavros/setpoint_position/local"/>
+		<remap from="~/attractor_setpoint_out" to="drone_pose/attractor_setpoint_out"/>
+		<remap from="~/estop_command_out" to="drone_pose/estop_command_out"/>
 		
+    <remap from="~/arming_client" to="mavros/cmd/arming"/>
+    <remap from="~/set_mode_client" to="mavros/set_mode"/>
+    <remap from="~/get_param_client" to="mavros/param/get"/>
+    <remap from="~/set_param_client" to="mavros/param/set"/>
+
 		<rosparam param="x_bounds"> [-5, 200] </rosparam>
 		<rosparam param="y_bounds"> [-100, 200] </rosparam>
 		<rosparam param="z_bounds"> [-1, 10] </rosparam>
