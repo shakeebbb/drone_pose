@@ -34,7 +34,7 @@
 		<remap from="~/traj_set_in" to="drone_pose/traj_set_in"/>
 		<remap from="~/twist_set_in" to="drone_pose/twist_set_in"/>
 		<remap from="~/mavros_setpoint_out" to="mavros/setpoint_position/local"/>
-		<remap from="~/attractor_setpoint_out" to="drone_pose/attractor_setpoint_out"/>
+		<remap from="~/attractor_setpoint_out" to="lookahead_point"/>
 		<remap from="~/estop_command_out" to="drone_pose/estop_command_out"/>
 		
     <remap from="~/arming_client" to="mavros/cmd/arming"/>
