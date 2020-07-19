@@ -15,7 +15,7 @@
 	
 	<!-- .................................................... -->
 	
-	<node if="$(arg launch_joy)" name="joy_node" pkg="joy" type="joy_node" output=$(arg log_output)/>
+	<node if="$(arg launch_joy)" name="joy_node" pkg="joy" type="joy_node" output="$(arg log_output)"/>
 	
 	<!-- .................................................... -->
 	
@@ -23,7 +23,7 @@
 	
 	<!-- .................................................... -->
 
-	<node if="$(arg launch_drone_pose)" name="drone_pose" pkg="drone_pose" type="drone_pose_node" output=$(arg log_output)>
+	<node if="$(arg launch_drone_pose)" name="drone_pose" pkg="drone_pose" type="drone_pose_node" output="$(arg log_output)">
 		<remap from="~/mavros_state_in" to="mavros/state"/>
 		<remap from="~/joy_in" to="/joy"/>
 		<remap from="~/pose_in" to="mavros/local_position/pose"/>
@@ -74,7 +74,7 @@
 	
 	<!-- .................................................... -->
 
-  <node pkg="mavros" type="mavros_node" name="mavros" required="$(arg mavros_required)" clear_params="true" output="$(arg log_output)" respawn="$(eval not mavros_required)">
+  <node pkg="mavros" if="$(arg launch_mavros)" type="mavros_node" name="mavros" required="$(arg mavros_required)" clear_params="true" output="$(arg log_output)" respawn="$(eval not mavros_required)">
 		<param name="fcu_url" value="/dev/fcu" />
 		<param name="gcs_url" value="" />
 		<param name="target_system_id" value="1" />
