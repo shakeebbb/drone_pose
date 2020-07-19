@@ -6,21 +6,24 @@
 	<arg name="launch_mocap" default="false"/>
 	<arg name="launch_drone_pose" default="true"/>
 	<arg name="launch_mavros" default="true"/>
-	
+
+  <arg name="log_output" default="screen"/>
+  <arg name="mavros_required" default="true"/>
+
 	<arg name="world_frame" default="$(arg mav_name)/odom"/>
 	<arg name="base_frame" default="$(arg mav_name)/base_link"/>
 	
 	<!-- .................................................... -->
 	
-	<node if="$(arg launch_joy)" name="joy_node" pkg="joy" type="joy_node" output="screen"/>
+	<node if="$(arg launch_joy)" name="joy_node" pkg="joy" type="joy_node" output=$(arg log_output)/>
 	
 	<!-- .................................................... -->
 	
-	<include if="$(arg launch_mocap)" file="$(find vrpn_client_ros)/launch/sample.launch" />
+	<include if="$(arg launch_mocap)" file="$(find vrpn_client_ros)/launch/sample.launch"/>
 	
 	<!-- .................................................... -->
 
-	<node if="$(arg launch_drone_pose)" name="drone_pose" pkg="drone_pose" type="drone_pose_node" output="screen">
+	<node if="$(arg launch_drone_pose)" name="drone_pose" pkg="drone_pose" type="drone_pose_node" output=$(arg log_output)>
 		<remap from="~/mavros_state_in" to="mavros/state"/>
 		<remap from="~/joy_in" to="/joy"/>
 		<remap from="~/pose_in" to="mavros/local_position/pose"/>
@@ -71,18 +74,17 @@
 	
 	<!-- .................................................... -->
 
-	<include if="$(arg launch_mavros)" file="$(find mavros)/launch/node.launch">
-		<arg name="pluginlists_yaml" value="$(find mavros)/launch/px4_pluginlists.yaml" />
-		<arg name="config_yaml" value="$(find mavros)/launch/px4_config.yaml" />
+  <node pkg="mavros" type="mavros_node" name="mavros" required="$(arg mavros_required)" clear_params="true" output="$(arg log_output)" respawn="$(eval not mavros_required)">
+		<param name="fcu_url" value="/dev/fcu" />
+		<param name="gcs_url" value="" />
+		<param name="target_system_id" value="1" />
+		<param name="target_component_id" value="1" />
+		<param name="fcu_protocol" value="v2.0" />
 
-		<arg name="fcu_url" value="/dev/fcu" />
-		<arg name="gcs_url" value="" />
-		<arg name="tgt_system" value="1" />
-		<arg name="tgt_component" value="1" />
-		<arg name="log_output" value="screen" />
-		<arg name="fcu_protocol" value="v2.0" />
-		<arg name="respawn_mavros" value="false" />
-	</include>
+		<!-- load blacklist, config -->
+		<rosparam command="load" file="$(find mavros)/launch/px4_pluginlists.yaml" />
+		<rosparam command="load" file="$(find mavros)/launch/px4_config.yaml" />
+	</node>
 	
 	<!-- .................................................... -->
 
