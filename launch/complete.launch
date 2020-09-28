@@ -37,7 +37,7 @@
 		<remap from="~/attractor_setpoint_out" to="lookahead_point"/>
 		<remap from="~/estop_command_out" to="drone_pose/estop_command_out"/>
 		
-    <remap from="~/arming_client" to="mavros/cmd/arming"/>
+    <remap from="~/cmd_client" to="mavros/cmd/command"/>
     <remap from="~/set_mode_client" to="mavros/set_mode"/>
     <remap from="~/get_param_client" to="mavros/param/get"/>
     <remap from="~/set_param_client" to="mavros/param/set"/>
@@ -50,6 +50,7 @@
 		
 		<param name="arm_button" type="int" value="2"/>
 		<param name="disarm_button" type="int" value="3"/>
+    <param name="force_button" type="int" value="5"/>
 
 		<param name="A_button" type="int" value="0"/>
 		<param name="B_button" type="int" value="1"/>

@@ -12,6 +12,7 @@ void drone_pose_class::wait_for_params(ros::NodeHandle *nh)
 
 	while(!nh->getParam("arm_button", armButton_));
 	while(!nh->getParam("disarm_button", disarmButton_));
+  while(!nh->getParam("force_button", forceButton_));
 
 	while(!nh->getParam("A_button", aButton_));
 	while(!nh->getParam("B_button", bButton_));

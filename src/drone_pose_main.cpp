@@ -28,7 +28,7 @@ drone_pose_class::drone_pose_class(ros::NodeHandle *nh)
 	flightModeServer_ = nh->advertiseService("flight_mode_service", &drone_pose_class::flightMode_cb, this);
 		
 	// Clients
-	armingClient_ = nh->serviceClient<mavros_msgs::CommandBool>("arming_client");
+	cmdClient_ = nh->serviceClient<mavros_msgs::CommandLong>("cmd_client");
 	setModeClient_ = nh->serviceClient<mavros_msgs::SetMode>("set_mode_client");
 	getParamClient_ = nh->serviceClient<mavros_msgs::ParamGet>("get_param_client");
 	setParamClient_ = nh->serviceClient<mavros_msgs::ParamSet>("set_param_client");
@@ -116,7 +116,7 @@ void drone_pose_class::traj_timer_cb(const ros::TimerEvent&)
 	if(flightMode_ == 'L')
 	{
 		if(extStateMavros_.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND)
-			arm_disarm(false);
+			arm_disarm("disarm", false);
 		else
 		{
 			geometry_msgs::Twist twist = get_twist_from_raw(0,0,-1*landSpeed_,0,0,0);
@@ -266,29 +266,52 @@ void drone_pose_class::publish_setpoint(std::string doc, geometry_msgs::Twist tw
 	}
 }
 // ***********************************************************************
-bool drone_pose_class::arm_disarm(bool field)
+bool drone_pose_class::arm_disarm(std::string field, bool force)
 {
-	mavros_msgs::CommandBool armingCommand;
-	armingCommand.request.value = field;
-	bool isSuccess = armingClient_.call(armingCommand);
+  mavros_msgs::CommandLong armingCommand;
+  armingCommand.request.broadcast = false;
+  armingCommand.request.command = 400; // MAV_CMD_COMPONENT_ARM_DISARM
+  armingCommand.request.confirmation = 0;
+  armingCommand.request.param3 = 0;
+  armingCommand.request.param4 = 0;
+  armingCommand.request.param5 = 0;
+  armingCommand.request.param6 = 0;
+  armingCommand.request.param7 = 0;
+  
+  if(field == "disarm")
+    armingCommand.request.param1 = 0;
+  else if(field == "arm")
+    armingCommand.request.param1 = 1;
+  else
+  {
+    ROS_WARN("Unknown arm/disarm instruction");
+    return false;
+  }
+
+  if(!force)
+    armingCommand.request.param2 = 0;
+  else
+    armingCommand.request.param2 = 21196;
+
+  bool isSuccess = cmdClient_.call(armingCommand);
 	
-	if(field && isSuccess)
+	if(field == "arm" && isSuccess)
 	{
 		ROS_INFO("ARMED: Service call successful");
 		std_msgs::Bool localEstopStatus;
 		localEstopStatus.data = false; // Green Light
 		estopPub_.publish(localEstopStatus);
 	}
-	else if(field && !isSuccess)
+	else if(field == "arm" && !isSuccess)
 		ROS_WARN("Could not arm the vehicle: Service call unsuccessful");
-	else if(!field && isSuccess)
+	else if(field == "disarm" && isSuccess)
 	{
 		ROS_INFO("DISARMED: Service call successful");
 		std_msgs::Bool localEstopStatus;
 		localEstopStatus.data = true; // Red Light
 		estopPub_.publish(localEstopStatus);
 	}
-	else if(!field && !isSuccess)
+	else if(field == "disarm" && !isSuccess)
 		ROS_WARN("Could not disarm the vehicle: Service call unsuccessful");
 		
 	return isSuccess;
@@ -297,19 +320,16 @@ bool drone_pose_class::arm_disarm(bool field)
 // ***********************************************************************
 void drone_pose_class::joy_cb(const sensor_msgs::Joy& msg)
 {
-	mavros_msgs::SetMode setMode;
-	mavros_msgs::CommandBool armingCommand;
-	
 	if(msg.buttons[armButton_] == 1) //ARM = X
 	{
 		if(set_px4_mode("OFFBOARD"))
-		arm_disarm(true);
+		  arm_disarm("arm", msg.buttons[forceButton_] == 1);
 	}
 
 	if(msg.buttons[disarmButton_] == 1) //DISARM = Y
 	{
-		if(arm_disarm(false))
-		set_px4_mode("STABILIZED");
+		if( arm_disarm("disarm", msg.buttons[forceButton_] == 1) )
+		  set_px4_mode("STABILIZED");
 	}
 
 	if(msg.buttons[aButton_] == 1)

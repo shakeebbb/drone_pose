@@ -10,7 +10,7 @@
 #include <geometry_msgs/PoseArray.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <nav_msgs/Odometry.h>
-#include <mavros_msgs/CommandBool.h>
+#include <mavros_msgs/CommandLong.h>
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/ExtendedState.h>
@@ -58,7 +58,7 @@ private:
 	ros::ServiceServer flightModeServer_;
 	
 	// Clients
-	ros::ServiceClient armingClient_;
+	ros::ServiceClient cmdClient_;
 	ros::ServiceClient setModeClient_;
 	ros::ServiceClient setParamClient_;
 	ros::ServiceClient getParamClient_;
@@ -93,6 +93,7 @@ private:
 	float successRadius_;
 	int armButton_;
 	int disarmButton_;
+  int forceButton_;
 	int landButton_;
 	int aButton_;
 	int bButton_;
@@ -141,7 +142,7 @@ public:
 	void update_twist_set_from_joy();
 	void quat_to_rpy(float, float, float, float, double&, double&, double&);
 	void rpy_to_quat(double, double, double, float&, float&, float&, float&);
-	bool arm_disarm(bool);
+	bool arm_disarm(std::string, bool);
 	bool set_px4_mode(std::string);
 	void publish_viz(geometry_msgs::Pose);
 	bool change_flight_mode(char, bool=false);
