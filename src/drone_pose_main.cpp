@@ -74,7 +74,7 @@ void drone_pose_class::init()
 	
 	isSafeToLand_ = true;
 	
-	flightMode_ = 'J';
+	flightMode_ = 'V';
 	
 	joySetpoint_ = 
 	get_pose_from_raw(takeoffPosition_[0], takeoffPosition_[1], takeoffPosition_[2], 0, 0, 0);

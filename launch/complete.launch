@@ -5,12 +5,12 @@
 	<arg name="launch_joy" default="false"/>
 	<arg name="launch_mocap" default="false"/>
 	<arg name="launch_drone_pose" default="true"/>
-	<arg name="launch_mavros" default="true"/>
+	<arg name="launch_mavros" default="false"/>
 
   <arg name="log_output" default="screen"/>
   <arg name="mavros_required" default="false"/>
 
-	<arg name="world_frame" default="$(arg mav_name)/odom"/>
+	<arg name="world_frame" default="world"/>
 	<arg name="base_frame" default="$(arg mav_name)/base_link"/>
 	
 	<!-- .................................................... -->
@@ -33,7 +33,7 @@
 		<remap from="~/landing_safety_in" to="drone_pose/landing_safety_in"/>
 		<remap from="~/traj_set_in" to="drone_pose/traj_set_in"/>
 		<remap from="~/twist_set_in" to="drone_pose/twist_set_in"/>
-		<remap from="~/mavros_setpoint_out" to="mavros/setpoint_position/local"/>
+		<remap from="~/mavros_setpoint_out" to="command/pose"/>
 		<remap from="~/attractor_setpoint_out" to="lookahead_point"/>
 		<remap from="~/estop_command_out" to="drone_pose/estop_command_out"/>
 		
