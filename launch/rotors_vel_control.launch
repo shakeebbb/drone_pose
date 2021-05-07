@@ -1,0 +1,65 @@
+<launch>
+
+	<arg name="mav_name" default="$(env ROS_NAMESPACE)"/>
+
+	<arg name="launch_joy" default="false"/>
+	<arg name="launch_drone_pose" default="true"/>
+
+  <arg name="log_output" default="screen"/>
+
+	<arg name="world_frame" default="world"/>
+	<arg name="base_frame" default="$(arg mav_name)/base_link"/>
+	
+	<!-- .................................................... -->
+	
+	<node if="$(arg launch_joy)" name="joy_node" pkg="joy" type="joy_node" output="$(arg log_output)"/>
+	
+	<!-- .................................................... -->
+
+	<node if="$(arg launch_drone_pose)" name="drone_pose" pkg="drone_pose" type="drone_pose_node" output="$(arg log_output)">
+		<remap from="~/joy_in" to="/joy"/>
+		<remap from="~/pose_in" to="ground_truth/pose_stamped"/>
+		<remap from="~/traj_set_in" to="drone_pose/traj_set_in"/>
+		<remap from="~/twist_set_in" to="drone_pose/twist_set_in"/>
+    <remap from="~/mavros_setpoint_out" to="command/pose"/>
+
+		<rosparam param="x_bounds"> [-5, 200] </rosparam>
+		<rosparam param="y_bounds"> [-100, 200] </rosparam>
+		<rosparam param="z_bounds"> [-1, 10] </rosparam>
+			
+		<rosparam param="takeoff_position"> [0, 0, 1.5] </rosparam>
+		
+		<param name="arm_button" type="int" value="2"/>
+		<param name="disarm_button" type="int" value="3"/>
+    <param name="force_button" type="int" value="5"/>
+
+		<param name="A_button" type="int" value="0"/>
+		<param name="B_button" type="int" value="1"/>
+		<param name="land_button" type="int" value="4"/>
+		<param name="send_attractor_button" type="int" value="5"/>
+
+		<param name="x_axis" type="int" value="4"/>
+    <param name="y_axis" type="int" value="3"/>
+		<param name="z_axis" type="int" value="1"/>
+		<param name="yaw_axis" type="int" value="0"/>
+
+		<param name="land_speed" type="double" value="0.2"/>
+		<param name="success_radius" type="double" value="0.35"/>
+		<param name="sampling_time" type="double" value="0.05"/>
+			
+		<param name="low_battery_voltage" type="double" value="13.5"/>
+		<param name="critical_battery_voltage" type="double" value="12.5"/>
+			
+		<param name="world_frame_id" type="string" value="$(arg world_frame)"/>
+			
+	</node>
+	
+</launch>
+
+
+<!-- Microsoft Xbox 360 Wired Controller for Linux -->
+<!-- Buttons => 0:A, 1:B, 2:X, 3:Y, 4:LB, 5:RB, 6:back, 7:start, 8:power -->
+<!-- Axes => 0:L/R Left stick, 1:U/D Left stick, 2:LT, 3:L/R Right stick, 4:U/D Right stick, 5:RT -->  
+
+<!-- F170 Logitech for Linux -->
+<!-- Buttons => -->
